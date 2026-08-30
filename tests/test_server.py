@@ -125,9 +125,13 @@ async def test_structured_output_has_schema_and_payload(session: ClientSession) 
     await session.initialize()
     tool = next(t for t in (await session.list_tools()).tools if t.name == "get_structured_weather")
     assert tool.outputSchema is not None
-    result = await session.call_tool("get_structured_weather", {"location": "Chicago"})
-    assert result.structuredContent["conditions"] == "Light rain"
-    assert result.structuredContent["humidity"] == 77
+    result = await session.call_tool("get_structured_weather", {"location": "Savognin"})
+    assert result.structuredContent["conditions"] == "Snow showers"
+    assert result.structuredContent["humidity"] == 84
+
+    # default location is Zurich
+    default = await session.call_tool("get_structured_weather", {})
+    assert default.structuredContent["location"] == "Zurich"
 
 
 async def test_image_and_annotations(session: ClientSession) -> None:

@@ -8,7 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Location = Literal["New York", "Chicago", "Los Angeles"]
+Location = Literal["Zurich", "Savognin"]
+DEFAULT_LOCATION: Location = "Zurich"
 ResourceKind = Literal["text", "blob"]
 
 
@@ -22,9 +23,8 @@ class Weather(BaseModel):
 
 
 WEATHER: dict[str, Weather] = {
-    "New York": Weather(location="New York", temperature=19.0, conditions="Cloudy", humidity=82),
-    "Chicago": Weather(location="Chicago", temperature=14.0, conditions="Light rain", humidity=77),
-    "Los Angeles": Weather(location="Los Angeles", temperature=27.0, conditions="Sunny", humidity=41),
+    "Zurich": Weather(location="Zurich", temperature=18.0, conditions="Partly cloudy", humidity=71),
+    "Savognin": Weather(location="Savognin", temperature=9.0, conditions="Snow showers", humidity=84),
 }
 
 # A 1x1 transparent PNG, base64 encoded. Small enough to inline, real enough to render.

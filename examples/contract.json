@@ -181,18 +181,15 @@
       "inputSchema": {
         "properties": {
           "location": {
+            "default": "Zurich",
             "enum": [
-              "New York",
-              "Chicago",
-              "Los Angeles"
+              "Zurich",
+              "Savognin"
             ],
             "title": "Location",
             "type": "string"
           }
         },
-        "required": [
-          "location"
-        ],
         "title": "get_structured_weatherArguments",
         "type": "object"
       },
@@ -465,18 +462,15 @@
       "inputSchema": {
         "properties": {
           "location": {
+            "default": "Zurich",
             "enum": [
-              "New York",
-              "Chicago",
-              "Los Angeles"
+              "Zurich",
+              "Savognin"
             ],
             "title": "Location",
             "type": "string"
           }
         },
-        "required": [
-          "location"
-        ],
         "title": "weather_reportArguments",
         "type": "object"
       },

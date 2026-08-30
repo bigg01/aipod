@@ -14,12 +14,22 @@ Exporters:
 * ``prometheus`` - a ``/metrics`` scrape endpoint on the mode's HTTP port
 * ``console``    - periodic dump to stdout (handy for a quick look)
 
-Instruments:
+Instruments (server internals, not just the Python process):
 
-* ``mcp.server.tool.calls``     counter   {mcp.tool.name, outcome, mcp.tool.sampling?}
-* ``mcp.server.tool.duration``  histogram {…}  unit ``s``
-* ``aipod.agent.ask.calls``     counter   {outcome}
-* ``aipod.agent.ask.duration``  histogram {outcome}  unit ``s``
+* ``mcp.server.requests``        counter   {mcp.method, outcome} - every MCP
+  request the server handles: tools/call, tools/list, resources/read,
+  resources/list, resources/templates/list, resources/subscribe,
+  resources/unsubscribe, prompts/get, prompts/list, completion/complete,
+  logging/setLevel, ping
+* ``mcp.server.request.duration`` histogram {mcp.method, outcome}  unit ``s``
+* ``mcp.server.tool.calls``       counter   {mcp.tool.name, outcome, mcp.tool.sampling?}
+* ``mcp.server.tool.duration``    histogram {…}  unit ``s``
+* ``mcp.server.sampling.requests`` counter  - server -> client sampling round-trips
+* ``mcp.server.tools`` / ``.resources`` / ``.resource_templates`` / ``.prompts``
+  observable gauges - the registered inventory
+* ``mcp.server.resource_subscriptions.active`` / ``mcp.server.background_tasks.active``
+  observable gauges - live per-connection state
+* ``aipod.agent.ask.calls`` / ``aipod.agent.ask.duration``  {outcome}  (agent mode)
 """
 
 from __future__ import annotations
@@ -151,12 +161,15 @@ def _install_provider_for_test(provider: Any) -> None:
     _state["provider"] = provider
     _state["instruments"] = None
     _state["meter_id"] = None
+    _state["observables_meter_id"] = None
 
 
 def reset() -> None:
     """Forget any provider/instruments (tests only)."""
 
-    _state.update(provider=None, instruments=None, meter_id=None)
+    _state.update(
+        provider=None, instruments=None, meter_id=None, observables_meter_id=None
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -172,15 +185,31 @@ def _instruments() -> dict[str, Any] | None:
     if _state["instruments"] is not None and _state["meter_id"] == id(meter):
         return _state["instruments"]
     inst = {
+        "req_calls": meter.create_counter(
+            "mcp.server.requests",
+            unit="{request}",
+            description="MCP protocol requests handled, by method (tools/call, "
+            "resources/read, prompts/get, completion/complete, ...)",
+        ),
+        "req_duration": meter.create_histogram(
+            "mcp.server.request.duration",
+            unit="s",
+            description="Wall-clock duration of an MCP protocol request, by method",
+        ),
         "tool_calls": meter.create_counter(
             "mcp.server.tool.calls",
             unit="{call}",
-            description="MCP tool invocations handled by the server",
+            description="MCP tool invocations handled by the server, by tool name",
         ),
         "tool_duration": meter.create_histogram(
             "mcp.server.tool.duration",
             unit="s",
-            description="Wall-clock duration of an MCP tool invocation",
+            description="Wall-clock duration of an MCP tool invocation, by tool name",
+        ),
+        "sampling_requests": meter.create_counter(
+            "mcp.server.sampling.requests",
+            unit="{request}",
+            description="Sampling round-trips the server asked the connected client to run",
         ),
         "ask_calls": meter.create_counter(
             "aipod.agent.ask.calls",
@@ -220,41 +249,164 @@ def record_agent_ask(*, ok: bool, duration_s: float) -> None:
     inst["ask_duration"].record(max(duration_s, 0.0), attrs)
 
 
-# --------------------------------------------------------------------------- #
-# FastMCP instrumentation (wrap the one tool-dispatch chokepoint)
-# --------------------------------------------------------------------------- #
+def record_request(method: str, *, ok: bool, duration_s: float) -> None:
+    inst = _instruments()
+    if inst is None:
+        return
+    attrs = {"mcp.method": method, "outcome": "ok" if ok else "error"}
+    inst["req_calls"].add(1, attrs)
+    inst["req_duration"].record(max(duration_s, 0.0), attrs)
 
 
-def instrument_fastmcp(mcp: Any) -> None:
-    """Time and count every tool call by wrapping the tool manager's dispatch."""
+def record_sampling() -> None:
+    inst = _instruments()
+    if inst is not None:
+        inst["sampling_requests"].add(1)
+
+
+# --------------------------------------------------------------------------- #
+# FastMCP instrumentation
+# --------------------------------------------------------------------------- #
+
+# Low-level request class name -> MCP method string.
+_METHODS = {
+    "PingRequest": "ping",
+    "ListToolsRequest": "tools/list",
+    "CallToolRequest": "tools/call",
+    "ListResourcesRequest": "resources/list",
+    "ReadResourceRequest": "resources/read",
+    "ListResourceTemplatesRequest": "resources/templates/list",
+    "ListPromptsRequest": "prompts/list",
+    "GetPromptRequest": "prompts/get",
+    "CompleteRequest": "completion/complete",
+    "SubscribeRequest": "resources/subscribe",
+    "UnsubscribeRequest": "resources/unsubscribe",
+    "SetLevelRequest": "logging/setLevel",
+}
+
+
+def instrument_fastmcp(
+    mcp: Any,
+    *,
+    subscriptions: Any = None,
+    background_tasks: Any = None,
+) -> None:
+    """Instrument a FastMCP server's internals: every protocol request (rate,
+    latency, errors by method), every tool call by name, and gauges for the
+    registered inventory + live subscription / background-task counts."""
 
     if not configured():
         return
+
+    # 1. Per-tool call/duration/sampling-flag: wrap the tool manager's dispatch
+    #    (the low-level CallTool handler captured a bound method at init, so this
+    #    is the reassignable chokepoint FastMCP.call_tool actually looks up).
     manager = getattr(mcp, "_tool_manager", None)
     original = getattr(manager, "call_tool", None)
-    if original is None or getattr(manager, "_aipod_instrumented", False):
-        return
+    if original is not None and not getattr(manager, "_aipod_instrumented", False):
+        from .server.contract import SAMPLING_TOOLS
 
-    from .server.contract import SAMPLING_TOOLS
+        async def call_tool(name: str, arguments: Any, *args: Any, **kwargs: Any) -> Any:
+            started = time.perf_counter()
+            ok = True
+            try:
+                return await original(name, arguments, *args, **kwargs)
+            except BaseException:
+                ok = False
+                raise
+            finally:
+                record_tool_call(
+                    name,
+                    ok=ok,
+                    duration_s=time.perf_counter() - started,
+                    sampling=name in SAMPLING_TOOLS,
+                )
 
-    async def call_tool(name: str, arguments: Any, *args: Any, **kwargs: Any) -> Any:
+        manager.call_tool = call_tool  # type: ignore[method-assign]
+        manager._aipod_instrumented = True
+
+    # 2. Every MCP request type: wrap the low-level request handlers.
+    low = getattr(mcp, "_mcp_server", None)
+    handlers = getattr(low, "request_handlers", None)
+    if isinstance(handlers, dict) and not getattr(low, "_aipod_instrumented", False):
+        for req_type, handler in list(handlers.items()):
+            method = _METHODS.get(req_type.__name__, req_type.__name__)
+            handlers[req_type] = _timed_request_handler(handler, method)
+        low._aipod_instrumented = True
+
+    # 3. Inventory + live-state gauges.
+    if not getattr(mcp, "_aipod_observables", False):
+        _register_observables(mcp, subscriptions, background_tasks)
+        mcp._aipod_observables = True
+
+
+def _timed_request_handler(handler: Any, method: str) -> Any:
+    async def wrapped(req: Any) -> Any:
         started = time.perf_counter()
         ok = True
         try:
-            return await original(name, arguments, *args, **kwargs)
+            return await handler(req)
         except BaseException:
             ok = False
             raise
         finally:
-            record_tool_call(
-                name,
-                ok=ok,
-                duration_s=time.perf_counter() - started,
-                sampling=name in SAMPLING_TOOLS,
-            )
+            record_request(method, ok=ok, duration_s=time.perf_counter() - started)
 
-    manager.call_tool = call_tool  # type: ignore[method-assign]
-    manager._aipod_instrumented = True
+    return wrapped
+
+
+def _register_observables(mcp: Any, subscriptions: Any, background_tasks: Any) -> None:
+    provider = _state["provider"]
+    if provider is None:
+        return
+    meter = provider.get_meter("aipod", __version__)
+    # Observable gauges only need to exist once per meter; re-registering (e.g.
+    # a second build_server() in the same process) just warns.
+    if _state.get("observables_meter_id") == id(meter):
+        return
+    _state["observables_meter_id"] = id(meter)
+
+    def _obs(fn: Any) -> Any:
+        from opentelemetry.metrics import Observation
+
+        def callback(_options: Any) -> list[Any]:
+            try:
+                return [Observation(int(fn()))]
+            except Exception:  # pragma: no cover - never let a scrape fail
+                return []
+
+        return callback
+
+    tm, rm, pm = mcp._tool_manager, mcp._resource_manager, mcp._prompt_manager
+    meter.create_observable_gauge(
+        "mcp.server.tools", callbacks=[_obs(lambda: len(tm.list_tools()))],
+        unit="{tool}", description="Registered MCP tools",
+    )
+    meter.create_observable_gauge(
+        "mcp.server.resources", callbacks=[_obs(lambda: len(rm.list_resources()))],
+        unit="{resource}", description="Registered static resources",
+    )
+    meter.create_observable_gauge(
+        "mcp.server.resource_templates", callbacks=[_obs(lambda: len(rm.list_templates()))],
+        unit="{template}", description="Registered resource templates",
+    )
+    meter.create_observable_gauge(
+        "mcp.server.prompts", callbacks=[_obs(lambda: len(pm.list_prompts()))],
+        unit="{prompt}", description="Registered prompts",
+    )
+    if subscriptions is not None:
+        meter.create_observable_gauge(
+            "mcp.server.resource_subscriptions.active",
+            callbacks=[_obs(lambda: len(subscriptions))],
+            unit="{subscription}", description="Resources currently subscribed",
+        )
+    if background_tasks is not None:
+        meter.create_observable_gauge(
+            "mcp.server.background_tasks.active",
+            callbacks=[_obs(lambda: len(background_tasks))],
+            unit="{task}",
+            description="Running background tasks (simulated logging / subscriber updates)",
+        )
 
 
 # --------------------------------------------------------------------------- #

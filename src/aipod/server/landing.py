@@ -24,7 +24,10 @@ _LANDING_HTML = """<!doctype html>
   .endpoint {
     display: inline-block; background: #151922; border: 1px solid #262c3a;
     border-radius: 8px; padding: .55rem .8rem; margin: .2rem .4rem .2rem 0;
+    text-decoration: none; color: #e7e9ee;
   }
+  a.endpoint:hover { border-color: #3d64a8; }
+  .endpoint .muted { color: #6b7385; font-size: .82rem; }
   h2 { font-size: 1.05rem; margin: 2.2rem 0 .6rem; color: #c8cede; }
   ul { margin: 0; padding-left: 1.2rem; }
   li { margin: .2rem 0; }
@@ -43,8 +46,19 @@ _LANDING_HTML = """<!doctype html>
   <p class="tag">A reference Model Context Protocol server that exercises every MCP feature &mdash; built with
   <a href="https://ai.pydantic.dev">pydantic-ai</a>.</p>
 
-  <span class="endpoint">MCP endpoint: <code>POST /mcp</code></span>
-  <span class="endpoint">Health: <code>GET /health</code></span>
+  <h2>Endpoints</h2>
+  <div>
+    <span class="endpoint"><code>POST&nbsp;/mcp</code> &mdash; MCP (Streamable HTTP)</span>
+    <a class="endpoint" href="/health"><code>GET&nbsp;/health</code></a>
+    <a class="endpoint" href="/contract.json"><code>GET&nbsp;/contract.json</code> &mdash; service contract</a>
+    <a class="endpoint" href="/.well-known/oauth-protected-resource"><code>GET&nbsp;/.well-known/oauth-protected-resource</code>
+      <span class="muted">&mdash; when auth is enabled</span></a>
+    <a class="endpoint" href="/metrics"><code>GET&nbsp;/metrics</code>
+      <span class="muted">&mdash; Prometheus, when metrics are enabled</span></a>
+  </div>
+  <p class="tag">The companion <code>aipod agent</code> publishes an agent card at
+  <code>/.well-known/agent-card.json</code> (A2A shape, with a link back to this
+  contract).</p>
 
   <div class="grid">
     <div>

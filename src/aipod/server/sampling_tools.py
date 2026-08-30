@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.mcp_sampling import MCPSamplingModel
 
+from .. import telemetry
+
 
 class Summary(BaseModel):
     """Structured result produced by the `summarize` tool."""
@@ -67,4 +69,5 @@ postmortem_agent = Agent(
 def sampling_model(ctx: Context) -> MCPSamplingModel:
     """Build a model that routes LLM calls back through the connected MCP client."""
 
+    telemetry.record_sampling()
     return MCPSamplingModel(session=ctx.session)

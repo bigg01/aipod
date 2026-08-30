@@ -86,7 +86,9 @@ def build_server(
     _register_completion(mcp)
     _register_low_level_handlers(mcp)
     _register_http_routes(mcp)
-    telemetry.instrument_fastmcp(mcp)
+    telemetry.instrument_fastmcp(
+        mcp, subscriptions=_subscriptions, background_tasks=_bg_tasks
+    )
     return mcp
 
 
@@ -153,7 +155,7 @@ def _register_tools(mcp: FastMCP) -> None:
         title="Get structured weather",
         description="Return a typed Weather object so the client can validate it against the output schema.",
     )
-    def get_structured_weather(location: data.Location) -> data.Weather:
+    def get_structured_weather(location: data.Location = data.DEFAULT_LOCATION) -> data.Weather:
         return data.WEATHER[location]
 
     @mcp.tool(
@@ -298,7 +300,7 @@ def _register_ai_tools(mcp: FastMCP) -> None:
         title="Weather report (pydantic-ai + sampling)",
         description="A pydantic-ai agent turns the structured readings for a city into a short spoken-style forecast.",
     )
-    async def weather_report(ctx: Context, location: data.Location) -> str:
+    async def weather_report(ctx: Context, location: data.Location = data.DEFAULT_LOCATION) -> str:
         w = data.WEATHER[location]
         prompt = (
             f"Readings for {location}: {w.temperature} C, {w.conditions}, "

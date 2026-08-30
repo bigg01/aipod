@@ -107,6 +107,50 @@ async def test_sampling_tools_carry_the_sampling_attribute(
     assert poet.attributes["mcp.tool.sampling"] is True
 
 
+async def test_requests_counted_by_method(in_memory: InMemoryMetricReader) -> None:
+    async with create_connected_server_and_client_session(build_server()) as client:
+        await client.list_tools()
+        await client.list_resources()
+        await client.list_prompts()
+        await client.read_resource("demo://resource/dynamic/text/1")  # type: ignore[arg-type]
+        try:
+            await client.read_resource("hero://roster/nobody")  # type: ignore[arg-type]
+        except Exception:
+            pass
+        await client.get_prompt("simple_prompt")
+
+    by = {
+        (p.attributes["mcp.method"], p.attributes["outcome"]): p.value
+        for p in _points(in_memory.get_metrics_data(), "mcp.server.requests")
+    }
+    assert by[("tools/list", "ok")] >= 1
+    assert by[("resources/list", "ok")] >= 1
+    assert by[("prompts/list", "ok")] >= 1
+    assert by[("resources/read", "ok")] >= 1
+    assert by[("resources/read", "error")] == 1
+    assert by[("prompts/get", "ok")] >= 1
+
+
+def test_inventory_gauges(in_memory: InMemoryMetricReader) -> None:
+    build_server()  # registers the observable gauges on the live meter
+
+    gauges = {
+        m: _points(in_memory.get_metrics_data(), m)
+        for m in (
+            "mcp.server.tools",
+            "mcp.server.resources",
+            "mcp.server.resource_templates",
+            "mcp.server.prompts",
+            "mcp.server.background_tasks.active",
+        )
+    }
+    assert gauges["mcp.server.tools"][0].value == 31
+    assert gauges["mcp.server.resources"][0].value == 2
+    assert gauges["mcp.server.resource_templates"][0].value == 5
+    assert gauges["mcp.server.prompts"][0].value == 4
+    assert gauges["mcp.server.background_tasks.active"][0].value == 0
+
+
 def test_agent_ask_metric_records(in_memory: InMemoryMetricReader) -> None:
     telemetry.record_agent_ask(ok=True, duration_s=0.05)
     telemetry.record_agent_ask(ok=False, duration_s=0.15)

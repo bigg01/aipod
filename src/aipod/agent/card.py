@@ -41,7 +41,7 @@ _SKILLS: list[dict[str, Any]] = [
         "name": "Weather",
         "description": "Narrative forecast for a demo city (`weather_report` tool).",
         "tags": ["narrative"],
-        "examples": ["What's the forecast for Chicago?"],
+        "examples": ["What's the forecast for Zurich?"],
     },
 ]
 

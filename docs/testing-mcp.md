@@ -76,7 +76,7 @@ $I --method tools/call --tool-name add  --tool-arg a=2 --tool-arg b=3
 ### Structured output — `structuredContent` validated against the output schema
 
 ```bash
-$I --method tools/call --tool-name get_structured_weather --tool-arg location="Los Angeles"
+$I --method tools/call --tool-name get_structured_weather --tool-arg location=Savognin
 # result carries both `content` (text) and `structuredContent` (typed Weather)
 ```
 
@@ -149,7 +149,7 @@ $I --method resources/read --uri "demo://resource/dynamic/blob/7"
 
 ```bash
 $I --method prompts/get --prompt-name simple_prompt
-$I --method prompts/get --prompt-name args_prompt     --prompt-args city=Chicago
+$I --method prompts/get --prompt-name args_prompt     --prompt-args city=Zurich
 $I --method prompts/get --prompt-name resource_prompt --prompt-args resource_id=2 kind=text
 ```
 
@@ -278,14 +278,25 @@ AIPOD_METRICS=prometheus uv run aipod server --transport http --port 8000 &
 npx -y @modelcontextprotocol/inspector@2.4.0 --cli http://127.0.0.1:8000/mcp \
   --method tools/call --tool-name echo --tool-arg message=hi
 
-curl -s http://127.0.0.1:8000/metrics | grep -E 'mcp_server_tool_(calls|duration)'
-# mcp_server_tool_calls_total{mcp_tool_name="echo",outcome="ok",...} 1.0
+curl -s http://127.0.0.1:8000/metrics | grep '^mcp_server_'
+# mcp_server_requests_total{mcp_method="tools/call",outcome="ok",...} 1.0
+# mcp_server_tool_calls_total{mcp_tool_name="echo",outcome="ok",...}  1.0
+# mcp_server_tools{...} 31.0
 ```
 
-Instruments: `mcp.server.tool.calls` / `mcp.server.tool.duration`
-(attrs `mcp.tool.name`, `outcome`, `mcp.tool.sampling`) in server mode;
-`aipod.agent.ask.calls` / `aipod.agent.ask.duration` in agent mode.
-`tests/test_telemetry.py` asserts them with an in-memory reader.
+Server-mode instruments cover the MCP internals, not just the Python process:
+
+- `mcp.server.requests` / `mcp.server.request.duration` — every request by
+  `mcp.method` (`tools/call`, `resources/read`, `prompts/get`,
+  `completion/complete`, `resources/subscribe`, `logging/setLevel`, …) + `outcome`
+- `mcp.server.tool.calls` / `.duration` — per tool name (+ `mcp.tool.sampling`)
+- `mcp.server.sampling.requests` — server → client sampling round-trips
+- `mcp.server.tools` / `.resources` / `.resource_templates` / `.prompts` and
+  `mcp.server.resource_subscriptions.active` / `mcp.server.background_tasks.active`
+  — gauges
+
+Agent mode: `aipod.agent.ask.calls` / `.duration`. `tests/test_telemetry.py`
+asserts them with an in-memory reader.
 
 ---
 
@@ -347,12 +358,12 @@ uv run aipod agent --ask "Use the poet tool to write about TCP sockets."
 | Feature | Method | Example flags |
 | --- | --- | --- |
 | List / call tool | `tools/list`, `tools/call` | `--tool-name echo --tool-arg message=hi` |
-| Structured output | `tools/call` | `--tool-name get_structured_weather --tool-arg location=Chicago` |
+| Structured output | `tools/call` | `--tool-name get_structured_weather --tool-arg location=Zurich` |
 | Marvel roster | `tools/call` | `--tool-name get_hero --tool-arg codename=storm` |
 | SRE estate | `tools/call` | `--tool-name check_service_health --tool-arg name=payments-api` |
 | Read resource | `resources/read` | `--uri "service://catalog/checkout-api"` |
 | List templates | `resources/templates/list` | — |
-| Get prompt | `prompts/get` | `--prompt-name args_prompt --prompt-args city=Chicago` |
+| Get prompt | `prompts/get` | `--prompt-name args_prompt --prompt-args city=Zurich` |
 | Set log level | `logging/setLevel` | `--log-level warning` |
 | Auth (when enabled) | any | `--header "Authorization: Bearer <key>"` |
 | Completion, subscribe, progress, sampling | — | UI only (or `pytest`) |

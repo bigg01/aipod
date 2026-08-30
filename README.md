@@ -151,20 +151,25 @@ Full walkthrough in [`docs/testing-mcp.md`](docs/testing-mcp.md#authentication).
 ## Observability (OpenTelemetry)
 
 Both modes emit OpenTelemetry **metrics** — off until you ask for an exporter.
+The server instruments its own MCP internals, not just the Python process:
 
 | Instrument | Type | Attributes |
 | --- | --- | --- |
+| `mcp.server.requests` | counter | `mcp.method` (`tools/call`, `resources/read`, `prompts/get`, `completion/complete`, `resources/subscribe`, `logging/setLevel`, …), `outcome` |
+| `mcp.server.request.duration` | histogram (s) | same |
 | `mcp.server.tool.calls` | counter | `mcp.tool.name`, `outcome` (`ok`/`error`), `mcp.tool.sampling` |
-| `mcp.server.tool.duration` | histogram (s) | same |
-| `aipod.agent.ask.calls` | counter | `outcome` |
-| `aipod.agent.ask.duration` | histogram (s) | `outcome` |
+| `mcp.server.tool.duration` | histogram (s) | per tool name |
+| `mcp.server.sampling.requests` | counter | server → client sampling round-trips |
+| `mcp.server.tools` / `.resources` / `.resource_templates` / `.prompts` | gauges | the registered inventory |
+| `mcp.server.resource_subscriptions.active` / `mcp.server.background_tasks.active` | gauges | live per-connection state |
+| `aipod.agent.ask.calls` / `aipod.agent.ask.duration` | counter / histogram | `outcome` (agent mode) |
 
 Turn it on with `AIPOD_METRICS` (or the standard `OTEL_*` vars):
 
 ```bash
 # scrape endpoint on the mode's HTTP port
 AIPOD_METRICS=prometheus uv run aipod server   # -> GET /metrics
-curl -s localhost:8000/metrics | grep mcp_server_tool
+curl -s localhost:8000/metrics | grep mcp_server_
 
 # push to an OTLP/HTTP collector
 AIPOD_METRICS=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 uv run aipod agent
