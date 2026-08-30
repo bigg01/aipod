@@ -76,10 +76,11 @@ securityContext:
 # emptyDir mounted at /tmp so the read-only rootfs still has scratch space.
 tmpSizeLimit: 128Mi
 
-# OpenTelemetry metrics for both modes. Off until `exporter` is set.
+# OpenTelemetry metrics for both modes. On by default (aipod's own default);
+# set exporter: none to turn it off.
 metrics:
-  # "" (off) | otlp | prometheus | console
-  exporter: ""
+  # prometheus (default) | otlp | console | none
+  exporter: "prometheus"
   # OTLP/HTTP collector base URL -> OTEL_EXPORTER_OTLP_ENDPOINT (exporter: otlp)
   otlpEndpoint: ""
   # extra OTEL_RESOURCE_ATTRIBUTES, comma-separated key=value

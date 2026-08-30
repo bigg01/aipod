@@ -43,10 +43,14 @@ def _points(data: object, name: str) -> list:
 @pytest.mark.parametrize(
     ("env", "expect_configured", "expect_prometheus"),
     [
-        ({}, False, False),
+        ({}, True, True),  # on by default, prometheus
         ({"AIPOD_METRICS": "none"}, False, False),
+        ({"AIPOD_METRICS": "off"}, False, False),
+        ({"OTEL_METRICS_EXPORTER": "none"}, False, False),
+        ({"OTEL_SDK_DISABLED": "true"}, False, False),
         ({"AIPOD_METRICS": "otlp"}, True, False),
         ({"AIPOD_METRICS": "prometheus"}, True, True),
+        ({"AIPOD_METRICS": "console"}, True, False),
         ({"OTEL_METRICS_EXPORTER": "otlp"}, True, False),
         ({"OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector:4318"}, True, False),
         ({"AIPOD_METRICS": "prometheus", "OTEL_SDK_DISABLED": "true"}, False, False),
@@ -180,9 +184,23 @@ def test_prometheus_endpoint_on_the_server(monkeypatch: pytest.MonkeyPatch) -> N
         telemetry.reset()
 
 
+def test_metrics_route_on_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in ("AIPOD_METRICS", "OTEL_METRICS_EXPORTER", "OTEL_EXPORTER_OTLP_ENDPOINT",
+                "OTEL_SDK_DISABLED"):
+        monkeypatch.delenv(key, raising=False)
+    from opentelemetry.exporter.prometheus import PrometheusMetricReader
+
+    provider = MeterProvider(metric_readers=[PrometheusMetricReader()])
+    telemetry._install_provider_for_test(provider)
+    try:
+        app = build_server(host="127.0.0.1", port=8000).streamable_http_app()
+        assert TestClient(app).get("/metrics").status_code == 200
+    finally:
+        provider.shutdown()
+        telemetry.reset()
+
+
 def test_no_metrics_route_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("AIPOD_METRICS", raising=False)
-    monkeypatch.delenv("OTEL_METRICS_EXPORTER", raising=False)
-    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    monkeypatch.setenv("AIPOD_METRICS", "none")
     app = build_server(host="127.0.0.1", port=8000).streamable_http_app()
     assert TestClient(app).get("/metrics").status_code == 404

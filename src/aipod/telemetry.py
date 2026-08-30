@@ -1,17 +1,18 @@
 """OpenTelemetry **metrics** for aipod - shared by both modes.
 
-Off unless asked for. It turns on when any of these is set:
+**On by default** with the ``prometheus`` exporter (a local ``/metrics`` scrape
+endpoint - no external dependency). Change or disable it with:
 
-* ``AIPOD_METRICS`` = ``otlp`` | ``prometheus`` | ``console`` (``none`` forces off)
-* ``OTEL_METRICS_EXPORTER`` (standard OTel var; anything but ``none``)
+* ``AIPOD_METRICS`` = ``prometheus`` | ``otlp`` | ``console`` | ``none``
+* ``OTEL_METRICS_EXPORTER`` (standard OTel var; ``none`` disables)
 * ``OTEL_EXPORTER_OTLP_ENDPOINT`` / ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT``
-
-``OTEL_SDK_DISABLED=true`` forces it off regardless.
+  select ``otlp`` when ``AIPOD_METRICS`` is unset
+* ``OTEL_SDK_DISABLED=true`` forces everything off
 
 Exporters:
 
+* ``prometheus`` - a ``/metrics`` scrape endpoint on the mode's HTTP port (default)
 * ``otlp``       - periodic OTLP/HTTP push (endpoint from the standard env vars)
-* ``prometheus`` - a ``/metrics`` scrape endpoint on the mode's HTTP port
 * ``console``    - periodic dump to stdout (handy for a quick look)
 
 Instruments (server internals, not just the Python process):
@@ -59,16 +60,23 @@ def _env(name: str) -> str:
 
 
 def selected_exporter() -> str:
-    """Which exporter the environment asks for (defaults to ``otlp``)."""
+    """Which exporter to use. Defaults to ``prometheus`` (a local ``/metrics``
+    endpoint - no external dependency); an OTLP endpoint switches it to ``otlp``."""
 
     for value in (_env("AIPOD_METRICS"), _env("OTEL_METRICS_EXPORTER")):
         if value in {"otlp", "prometheus", "console"}:
             return value
-    return "otlp"
+    if os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") or os.environ.get(
+        "OTEL_EXPORTER_OTLP_ENDPOINT"
+    ):
+        return "otlp"
+    return "prometheus"
 
 
 def configured() -> bool:
-    """True when the environment asks for metrics."""
+    """True unless metrics are explicitly turned off. Metrics are **on by
+    default** (Prometheus ``/metrics``); disable with ``AIPOD_METRICS=none``,
+    ``OTEL_METRICS_EXPORTER=none``, or ``OTEL_SDK_DISABLED=true``."""
 
     if not _HAVE_OTEL:
         return False
@@ -78,17 +86,14 @@ def configured() -> bool:
     aipod = _env("AIPOD_METRICS")
     if aipod in {"otlp", "prometheus", "console"}:
         return True
-    if aipod and aipod in _OFF:
-        return False  # AIPOD_METRICS explicitly disables, endpoint or not
     if aipod:
-        return False  # set to something unrecognised -> treat as off
+        return False  # any other value (none / off / typo) -> off
 
-    if _env("OTEL_METRICS_EXPORTER") not in _OFF:
-        return True
-    return bool(
-        os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
-        or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
-    )
+    otel = _env("OTEL_METRICS_EXPORTER")
+    if otel and otel in _OFF:
+        return False  # OTEL_METRICS_EXPORTER=none explicitly disables
+
+    return True
 
 
 def prometheus_enabled() -> bool:

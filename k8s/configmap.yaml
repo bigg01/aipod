@@ -26,10 +26,10 @@ data:
   # AIPOD_AUTH_ISSUER: "https://id.example.com"   # real OAuth 2.1 authorization server
   # AIPOD_PUBLIC_URL: "https://aipod.example.com" # externally reachable base URL
 
-  # OpenTelemetry metrics (both modes). Off unless AIPOD_METRICS is set.
-  AIPOD_METRICS: "" # "" | otlp | prometheus | console
+  # OpenTelemetry metrics (both modes). ON by default with the prometheus
+  # exporter: each mode serves /metrics on its HTTP port and the Deployments
+  # carry prometheus.io/scrape annotations. Override here:
+  AIPOD_METRICS: "prometheus" # prometheus | otlp | console | none
   # exporter: otlp -> point at your collector (OTLP/HTTP):
   # OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability:4318"
   # OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=prod"
-  # exporter: prometheus -> each mode serves /metrics on its HTTP port; the
-  # Deployments carry prometheus.io/scrape annotations for it.

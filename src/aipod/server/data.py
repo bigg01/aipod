@@ -143,6 +143,7 @@ FEATURES_MD = """\
 - Optional bearer-token auth: run with `--auth-token` / `AIPOD_API_KEY` and the
   `/mcp` route becomes an OAuth 2.1 protected resource (`401` +
   `WWW-Authenticate`, `/.well-known/oauth-protected-resource` metadata)
-- Optional OpenTelemetry metrics: set `AIPOD_METRICS` (`otlp` / `prometheus` /
-  `console`) for per-tool call count + duration; `prometheus` adds `GET /metrics`
+- OpenTelemetry metrics, on by default: `GET /metrics` (Prometheus) exposes
+  per-MCP-method and per-tool counters + histograms, a sampling counter, and
+  inventory gauges. `AIPOD_METRICS=otlp|console|none` changes or disables it.
 """

@@ -269,11 +269,12 @@ issuer's JWTs (signature, `aud`, `exp`, scopes).
 
 ## Metrics (OpenTelemetry)
 
-Off unless asked for. `AIPOD_METRICS` = `prometheus` \| `otlp` \| `console`
-(standard `OTEL_*` vars work too; `OTEL_SDK_DISABLED=true` forces off).
+**On by default** (Prometheus `/metrics`). `AIPOD_METRICS` = `prometheus` \|
+`otlp` \| `console` \| `none`; `OTEL_METRICS_EXPORTER=none` or
+`OTEL_SDK_DISABLED=true` also disable it.
 
 ```bash
-AIPOD_METRICS=prometheus uv run aipod server --transport http --port 8000 &
+uv run aipod server --transport http --port 8000 &
 # call a couple of tools first so the counters exist
 npx -y @modelcontextprotocol/inspector@2.4.0 --cli http://127.0.0.1:8000/mcp \
   --method tools/call --tool-name echo --tool-arg message=hi

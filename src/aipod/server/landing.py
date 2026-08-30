@@ -54,7 +54,7 @@ _LANDING_HTML = """<!doctype html>
     <a class="endpoint" href="/.well-known/oauth-protected-resource"><code>GET&nbsp;/.well-known/oauth-protected-resource</code>
       <span class="muted">&mdash; when auth is enabled</span></a>
     <a class="endpoint" href="/metrics"><code>GET&nbsp;/metrics</code>
-      <span class="muted">&mdash; Prometheus, when metrics are enabled</span></a>
+      <span class="muted">&mdash; Prometheus (on by default; <code>AIPOD_METRICS=none</code> disables)</span></a>
   </div>
   <p class="tag">The companion <code>aipod agent</code> publishes an agent card at
   <code>/.well-known/agent-card.json</code> (A2A shape, with a link back to this
@@ -122,7 +122,7 @@ _LANDING_HTML = """<!doctype html>
         <li>Resource subscriptions</li>
         <li>Client-controlled logging level</li>
         <li>Optional bearer auth (OAuth 2.1 protected resource)</li>
-        <li>Optional OpenTelemetry metrics (<code>/metrics</code>)</li>
+        <li>OpenTelemetry metrics (<code>/metrics</code>, on by default)</li>
       </ul>
     </div>
   </div>

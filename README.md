@@ -46,12 +46,12 @@ deployments) as scratch.
 | Resources | static docs + templated `demo://resource/dynamic/{text,blob}/{resource_id}`, `hero://roster/{codename}`, `service://catalog/{name}`, `runbook://{service}` |
 | Prompts | `simple_prompt`, `args_prompt`, `completable_prompt`, `resource_prompt` |
 | Auth | **open by default**; add a key and `/mcp` becomes an OAuth 2.1 protected resource (bearer token + `/.well-known/oauth-protected-resource`) |
-| Metrics | **off by default**; OpenTelemetry per-tool call count + duration, exported via OTLP / Prometheus `/metrics` / console |
+| Metrics | **on by default** (Prometheus `GET /metrics`); OpenTelemetry per-MCP-method + per-tool counters/histograms, sampling count, inventory gauges. `AIPOD_METRICS=otlp\|console\|none` to change or disable |
 | Also | argument completion, resource subscriptions, progress, `logging/setLevel` |
 
 HTTP routes: `GET /` (landing), `GET /health`, `GET|POST /mcp`, `GET /contract.json`,
-and — when enabled — `GET /.well-known/oauth-protected-resource` (auth) and
-`GET /metrics` (Prometheus).
+`GET /metrics` (Prometheus, on by default), and — when auth is enabled —
+`GET /.well-known/oauth-protected-resource`.
 
 `GET /` itself is a plain landing page listing every tool, resource, and
 prompt above — open it in a browser once the server is running:
@@ -150,8 +150,9 @@ Full walkthrough in [`docs/testing-mcp.md`](docs/testing-mcp.md#authentication).
 
 ## Observability (OpenTelemetry)
 
-Both modes emit OpenTelemetry **metrics** — off until you ask for an exporter.
-The server instruments its own MCP internals, not just the Python process:
+Both modes emit OpenTelemetry **metrics**, **on by default** with the Prometheus
+exporter — `aipod server` serves `GET /metrics` with no configuration. The server
+instruments its own MCP internals, not just the Python process:
 
 | Instrument | Type | Attributes |
 | --- | --- | --- |
@@ -164,23 +165,24 @@ The server instruments its own MCP internals, not just the Python process:
 | `mcp.server.resource_subscriptions.active` / `mcp.server.background_tasks.active` | gauges | live per-connection state |
 | `aipod.agent.ask.calls` / `aipod.agent.ask.duration` | counter / histogram | `outcome` (agent mode) |
 
-Turn it on with `AIPOD_METRICS` (or the standard `OTEL_*` vars):
-
 ```bash
-# scrape endpoint on the mode's HTTP port
-AIPOD_METRICS=prometheus uv run aipod server   # -> GET /metrics
+# default: Prometheus scrape endpoint on the mode's HTTP port
+uv run aipod server
 curl -s localhost:8000/metrics | grep mcp_server_
 
-# push to an OTLP/HTTP collector
+# push to an OTLP/HTTP collector instead
 AIPOD_METRICS=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 uv run aipod agent
 
-# quick look on stdout
+# stdout, for a quick look
 AIPOD_METRICS=console uv run aipod server
+
+# turn it off
+AIPOD_METRICS=none uv run aipod server
 ```
 
-`AIPOD_METRICS` = `otlp` \| `prometheus` \| `console` (`none` / unset = off);
-`OTEL_METRICS_EXPORTER` or a bare `OTEL_EXPORTER_OTLP_ENDPOINT` also switch it on;
-`OTEL_SDK_DISABLED=true` forces it off. `OTEL_SERVICE_NAME` /
+`AIPOD_METRICS` = `prometheus` (default) \| `otlp` \| `console` \| `none`;
+`OTEL_METRICS_EXPORTER=none` or `OTEL_SDK_DISABLED=true` also disable it;
+a bare `OTEL_EXPORTER_OTLP_ENDPOINT` selects `otlp`. `OTEL_SERVICE_NAME` /
 `OTEL_RESOURCE_ATTRIBUTES` set the resource. In k8s: `metrics.exporter` in the
 Helm values, or `AIPOD_METRICS` in `k8s/configmap.yaml`.
 

@@ -52,7 +52,7 @@ helm template aipod ./charts/aipod --debug
 | `auth.enabled` | `false` | `true` ⇒ `/mcp` is an OAuth 2.1 protected resource |
 | `auth.apiKey` / `auth.existingSecret` | `""` | inline key (chart makes the Secret) or bring your own |
 | `model.apiKey` / `model.existingSecret` | `""` | provider key for agent mode; `/ask` is `503` without it |
-| `metrics.exporter` | `""` | `otlp` / `prometheus` / `console` — OpenTelemetry metrics for both modes |
+| `metrics.exporter` | `"prometheus"` | OpenTelemetry metrics for both modes — `prometheus` (default, serves `/metrics`) / `otlp` / `console` / `none` |
 | `metrics.otlpEndpoint` | `""` | OTLP/HTTP collector URL (`exporter: otlp`) |
 | `metrics.prometheusScrapeAnnotations` | `true` | add `prometheus.io/scrape` pod annotations when `exporter: prometheus` |
 | `*.ingress.enabled` | `false` | per-mode Ingress with `className` / `annotations` / `tls` |
