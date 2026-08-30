@@ -16,6 +16,7 @@ from mcp.shared.context import RequestContext
 from mcp.shared.memory import create_connected_server_and_client_session
 from mcp.types import CreateMessageRequestParams, CreateMessageResult, ErrorData, TextContent
 
+from aipod import __version__
 from aipod.server import build_server
 
 pytestmark = pytest.mark.anyio
@@ -473,3 +474,16 @@ async def test_governance_env_override(monkeypatch) -> None:
     contract = await contract_mod.service_contract(build_server())
     assert contract["governance"]["dataClassification"] == "CONFIDENTIAL"
     assert contract["governance"]["owner"] == "platform-team@example.com"
+
+
+def test_http_routes_report_version() -> None:
+    from starlette.testclient import TestClient
+
+    client = TestClient(build_server(host="127.0.0.1", port=8000).streamable_http_app())
+
+    health = client.get("/health").json()
+    assert health["status"] == "ok"
+    assert health["version"] == __version__
+
+    landing = client.get("/").text
+    assert f"v{__version__}" in landing

@@ -50,7 +50,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _run_server(args: argparse.Namespace) -> None:
+    from . import telemetry
     from .server.build import build_server
+
+    # Wire up the MeterProvider *before* build_server() so the observable gauges
+    # it registers have somewhere to report; skip it for the print-and-exit path.
+    if args.print_doc != "contract":
+        telemetry.setup_metrics(mode="server")
 
     mcp = build_server(host=args.host, port=args.port, auth_token=args.auth_token)
 
@@ -69,10 +75,6 @@ def _run_server(args: argparse.Namespace) -> None:
             )
         )
         return
-
-    from . import telemetry
-
-    telemetry.setup_metrics(mode="server")
 
     if args.transport == "stdio":
         mcp.run("stdio")

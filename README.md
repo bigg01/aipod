@@ -186,6 +186,14 @@ a bare `OTEL_EXPORTER_OTLP_ENDPOINT` selects `otlp`. `OTEL_SERVICE_NAME` /
 `OTEL_RESOURCE_ATTRIBUTES` set the resource. In k8s: `metrics.exporter` in the
 Helm values, or `AIPOD_METRICS` in `k8s/configmap.yaml`.
 
+**Grafana dashboard** — [`dashboards/aipod.json`](dashboards/aipod.json) (import
+it directly) covers the inventory gauges, per-method + per-tool rate / errors /
+latency, sampling, and the agent `/ask`. On a kube-prometheus-stack cluster,
+`kubectl apply -k dashboards` ships it as a sidecar-loaded `ConfigMap`.
+
+The running version shows on the landing page (`GET /`) and in `GET /health`
+(`{"status":"ok","version":"…"}`).
+
 ## Test
 
 ```bash

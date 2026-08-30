@@ -1,0 +1,147 @@
+{
+  "annotations": { "list": [ { "builtIn": 1, "datasource": { "type": "grafana", "uid": "-- Grafana --" }, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" } ] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "aipod — MCP server",
+  "uid": "aipod-mcp-server",
+  "tags": ["aipod", "mcp"],
+  "timezone": "",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "refresh": 1
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": { "query": "label_values(mcp_server_tools, job)", "refId": "job" },
+        "definition": "label_values(mcp_server_tools, job)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    { "type": "row", "title": "Inventory & state", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 100 },
+
+    { "id": 1, "type": "stat", "title": "Tools", "gridPos": { "h": 4, "w": 3, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [ { "expr": "max(mcp_server_tools{job=~\"$job\"})", "refId": "A" } ] },
+
+    { "id": 2, "type": "stat", "title": "Resources", "gridPos": { "h": 4, "w": 3, "x": 3, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [ { "expr": "max(mcp_server_resources{job=~\"$job\"})", "refId": "A" } ] },
+
+    { "id": 3, "type": "stat", "title": "Resource templates", "gridPos": { "h": 4, "w": 3, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [ { "expr": "max(mcp_server_resource_templates{job=~\"$job\"})", "refId": "A" } ] },
+
+    { "id": 4, "type": "stat", "title": "Prompts", "gridPos": { "h": 4, "w": 3, "x": 9, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [ { "expr": "max(mcp_server_prompts{job=~\"$job\"})", "refId": "A" } ] },
+
+    { "id": 5, "type": "stat", "title": "Active subscriptions", "gridPos": { "h": 4, "w": 3, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [ { "expr": "sum(mcp_server_resource_subscriptions_active{job=~\"$job\"})", "refId": "A" } ] },
+
+    { "id": 6, "type": "stat", "title": "Background tasks", "gridPos": { "h": 4, "w": 3, "x": 15, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "targets": [ { "expr": "sum(mcp_server_background_tasks_active{job=~\"$job\"})", "refId": "A" } ] },
+
+    { "id": 7, "type": "stat", "title": "Requests / s (5m)", "gridPos": { "h": 4, "w": 3, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [ { "expr": "sum(rate(mcp_server_requests_total{job=~\"$job\"}[5m]))", "refId": "A" } ] },
+
+    { "id": 8, "type": "stat", "title": "Error ratio (5m)", "gridPos": { "h": 4, "w": 3, "x": 21, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.01 }, { "color": "red", "value": 0.05 } ] } } },
+      "targets": [ { "expr": "sum(rate(mcp_server_requests_total{job=~\"$job\",outcome=\"error\"}[5m])) / clamp_min(sum(rate(mcp_server_requests_total{job=~\"$job\"}[5m])), 1e-9)", "refId": "A" } ] },
+
+    { "type": "row", "title": "MCP requests (by method)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "id": 101 },
+
+    { "id": 10, "type": "timeseries", "title": "Request rate by method", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 15, "stacking": { "mode": "normal" } } } },
+      "targets": [ { "expr": "sum by (mcp_method) (rate(mcp_server_requests_total{job=~\"$job\"}[5m]))", "legendFormat": "{{mcp_method}}", "refId": "A" } ] },
+
+    { "id": 11, "type": "timeseries", "title": "Errors by method", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 15 } } },
+      "targets": [ { "expr": "sum by (mcp_method) (rate(mcp_server_requests_total{job=~\"$job\",outcome=\"error\"}[5m]))", "legendFormat": "{{mcp_method}}", "refId": "A" } ] },
+
+    { "id": 12, "type": "timeseries", "title": "Request latency (overall)", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(mcp_server_request_duration_seconds_bucket{job=~\"$job\"}[5m])))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(mcp_server_request_duration_seconds_bucket{job=~\"$job\"}[5m])))", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(mcp_server_request_duration_seconds_bucket{job=~\"$job\"}[5m])))", "legendFormat": "p99", "refId": "C" }
+      ] },
+
+    { "id": 13, "type": "timeseries", "title": "p95 latency by method", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [ { "expr": "histogram_quantile(0.95, sum by (le, mcp_method) (rate(mcp_server_request_duration_seconds_bucket{job=~\"$job\"}[5m])))", "legendFormat": "{{mcp_method}}", "refId": "A" } ] },
+
+    { "type": "row", "title": "Tools", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }, "id": 102 },
+
+    { "id": 20, "type": "timeseries", "title": "Tool call rate", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 15, "stacking": { "mode": "normal" } } } },
+      "targets": [ { "expr": "sum by (mcp_tool_name) (rate(mcp_server_tool_calls_total{job=~\"$job\"}[5m]))", "legendFormat": "{{mcp_tool_name}}", "refId": "A" } ] },
+
+    { "id": 21, "type": "timeseries", "title": "Tool errors", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 15 } } },
+      "targets": [ { "expr": "sum by (mcp_tool_name) (rate(mcp_server_tool_calls_total{job=~\"$job\",outcome=\"error\"}[5m]))", "legendFormat": "{{mcp_tool_name}}", "refId": "A" } ] },
+
+    { "id": 22, "type": "timeseries", "title": "Tool p95 latency", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [ { "expr": "histogram_quantile(0.95, sum by (le, mcp_tool_name) (rate(mcp_server_tool_duration_seconds_bucket{job=~\"$job\"}[5m])))", "legendFormat": "{{mcp_tool_name}}", "refId": "A" } ] },
+
+    { "id": 23, "type": "table", "title": "Calls by tool (last 1h)", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "options": { "showHeader": true },
+      "targets": [ { "expr": "sort_desc(sum by (mcp_tool_name, outcome) (increase(mcp_server_tool_calls_total{job=~\"$job\"}[1h])))", "format": "table", "instant": true, "refId": "A" } ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "job": true } } } ] },
+
+    { "type": "row", "title": "Sampling & agent", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }, "id": 103 },
+
+    { "id": 30, "type": "timeseries", "title": "Sampling round-trips / s", "gridPos": { "h": 8, "w": 8, "x": 0, "y": 40 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [ { "expr": "sum(rate(mcp_server_sampling_requests_total{job=~\"$job\"}[5m]))", "legendFormat": "sampling", "refId": "A" } ] },
+
+    { "id": 31, "type": "timeseries", "title": "Agent /ask rate by outcome", "gridPos": { "h": 8, "w": 8, "x": 8, "y": 40 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "targets": [ { "expr": "sum by (outcome) (rate(aipod_agent_ask_calls_total[5m]))", "legendFormat": "{{outcome}}", "refId": "A" } ] },
+
+    { "id": 32, "type": "timeseries", "title": "Agent /ask p95 latency", "gridPos": { "h": 8, "w": 8, "x": 16, "y": 40 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [ { "expr": "histogram_quantile(0.95, sum by (le) (rate(aipod_agent_ask_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "A" } ] }
+  ]
+}

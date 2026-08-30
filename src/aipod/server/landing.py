@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .. import __version__
 from ..branding import LOGO_SVG
 
 _LANDING_HTML = """<!doctype html>
@@ -35,14 +36,19 @@ _LANDING_HTML = """<!doctype html>
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
   a { color: #9ecbff; }
   footer { margin-top: 3rem; color: #6b7385; font-size: .9rem; }
-  .brand { display: flex; align-items: center; gap: .7rem; margin-bottom: .25rem; }
-  .brand svg { flex: none; }
+  .brand { display: flex; align-items: baseline; gap: .7rem; margin-bottom: .25rem; }
+  .brand svg { flex: none; align-self: center; }
   .brand h1 { margin: 0; }
+  .ver {
+    font: 600 .8rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #9ecbff; background: #151922; border: 1px solid #262c3a;
+    border-radius: 999px; padding: .25rem .6rem;
+  }
 </style>
 </head>
 <body>
 <main>
-  <div class="brand">__LOGO__<h1>aipod &mdash; server mode</h1></div>
+  <div class="brand">__LOGO__<h1>aipod &mdash; server mode</h1><span class="ver">v__VERSION__</span></div>
   <p class="tag">A reference Model Context Protocol server that exercises every MCP feature &mdash; built with
   <a href="https://ai.pydantic.dev">pydantic-ai</a>.</p>
 
@@ -137,4 +143,4 @@ _LANDING_HTML = """<!doctype html>
 </html>
 """
 
-LANDING_HTML = _LANDING_HTML.replace("__LOGO__", LOGO_SVG)
+LANDING_HTML = _LANDING_HTML.replace("__LOGO__", LOGO_SVG).replace("__VERSION__", __version__)

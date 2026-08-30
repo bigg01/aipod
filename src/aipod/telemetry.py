@@ -339,10 +339,11 @@ def instrument_fastmcp(
             handlers[req_type] = _timed_request_handler(handler, method)
         low._aipod_instrumented = True
 
-    # 3. Inventory + live-state gauges.
+    # 3. Inventory + live-state gauges. Only mark done once a provider was
+    #    actually available (setup_metrics must run first) so a later retry works.
     if not getattr(mcp, "_aipod_observables", False):
-        _register_observables(mcp, subscriptions, background_tasks)
-        mcp._aipod_observables = True
+        if _register_observables(mcp, subscriptions, background_tasks):
+            mcp._aipod_observables = True
 
 
 def _timed_request_handler(handler: Any, method: str) -> Any:
@@ -360,15 +361,18 @@ def _timed_request_handler(handler: Any, method: str) -> Any:
     return wrapped
 
 
-def _register_observables(mcp: Any, subscriptions: Any, background_tasks: Any) -> None:
+def _register_observables(mcp: Any, subscriptions: Any, background_tasks: Any) -> bool:
+    """Register the inventory / live-state observable gauges. Returns False (a
+    no-op) if no MeterProvider is wired up yet - the caller can retry later."""
+
     provider = _state["provider"]
     if provider is None:
-        return
+        return False
     meter = provider.get_meter("aipod", __version__)
     # Observable gauges only need to exist once per meter; re-registering (e.g.
     # a second build_server() in the same process) just warns.
     if _state.get("observables_meter_id") == id(meter):
-        return
+        return True
     _state["observables_meter_id"] = id(meter)
 
     def _obs(fn: Any) -> Any:
@@ -412,6 +416,7 @@ def _register_observables(mcp: Any, subscriptions: Any, background_tasks: Any) -
             unit="{task}",
             description="Running background tasks (simulated logging / subscriber updates)",
         )
+    return True
 
 
 # --------------------------------------------------------------------------- #

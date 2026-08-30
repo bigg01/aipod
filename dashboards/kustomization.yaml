@@ -1,0 +1,21 @@
+# Deploy the Grafana dashboard as a ConfigMap the kube-prometheus-stack
+# Grafana sidecar picks up (label grafana_dashboard: "1", any namespace):
+#
+#   kubectl apply -k dashboards
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aipod
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: aipod
+
+configMapGenerator:
+  - name: aipod-grafana-dashboard
+    files:
+      - aipod.json
