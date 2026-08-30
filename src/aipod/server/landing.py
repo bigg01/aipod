@@ -137,6 +137,8 @@ _LANDING_HTML = """<!doctype html>
     Connect with any MCP client, e.g.
     <code>npx @modelcontextprotocol/inspector</code>, then point it at
     <code>http://&lt;host&gt;:&lt;port&gt;/mcp</code>.
+    <br>Source: <a href="https://github.com/bigg01/aipod">github.com/bigg01/aipod</a>
+    &middot; v__VERSION__
   </footer>
 </main>
 </body>

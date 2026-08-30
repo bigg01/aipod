@@ -2,6 +2,9 @@
   "annotations": { "list": [ { "builtIn": 1, "datasource": { "type": "grafana", "uid": "-- Grafana --" }, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" } ] },
   "editable": true,
   "graphTooltip": 1,
+  "links": [
+    { "title": "aipod source", "type": "link", "icon": "external link", "url": "https://github.com/bigg01/aipod", "targetBlank": true }
+  ],
   "title": "aipod — MCP server",
   "uid": "aipod-mcp-server",
   "tags": ["aipod", "mcp"],

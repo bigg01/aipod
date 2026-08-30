@@ -7,7 +7,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
-from .. import telemetry
+from .. import __version__, telemetry
 from ..branding import LOGO_SVG
 from .card import agent_card
 from .config import mcp_url, model_name
@@ -26,8 +26,12 @@ _LANDING = """<!doctype html>
  h1 {{ margin:0; }} .tag {{ color:#8b93a7; }}
  code {{ font-family:ui-monospace,Menlo,monospace; background:#151922; padding:.15rem .4rem; border-radius:6px; }}
  li {{ margin:.3rem 0; }}
+ .ver {{ font:600 .8rem/1 ui-monospace,Menlo,monospace; color:#9ecbff; background:#151922;
+         border:1px solid #262c3a; border-radius:999px; padding:.25rem .6rem; }}
+ footer {{ margin-top:2.5rem; color:#6b7385; font-size:.9rem; }}
+ a {{ color:#9ecbff; }}
 </style></head><body><main>
-<div class="brand">{logo}<h1>aipod &mdash; agent mode</h1></div>
+<div class="brand">{logo}<h1>aipod &mdash; agent mode</h1><span class="ver">v{version}</span></div>
 <p class="tag">A pydantic-ai agent. It calls tools from the aipod MCP server at
 <code>{mcp}</code>.</p>
 <ul>
@@ -36,6 +40,7 @@ _LANDING = """<!doctype html>
   <li><code>POST /ask</code> &mdash; <code>{{"prompt": "..."}}</code> &rarr; <code>{{"output": "..."}}</code>
       {model_note}</li>
 </ul>
+<footer>Source: <a href="https://github.com/bigg01/aipod">github.com/bigg01/aipod</a></footer>
 </main></body></html>
 """
 
@@ -46,13 +51,16 @@ async def _homepage(_request: Request) -> HTMLResponse:
         if model_name()
         else "(no <code>AIPOD_MODEL</code> configured &mdash; returns 503)"
     )
-    return HTMLResponse(_LANDING.format(logo=LOGO_SVG, mcp=mcp_url(), model_note=note))
+    return HTMLResponse(
+        _LANDING.format(logo=LOGO_SVG, mcp=mcp_url(), model_note=note, version=__version__)
+    )
 
 
 async def _health(_request: Request) -> JSONResponse:
     return JSONResponse(
         {
             "status": "ok",
+            "version": __version__,
             "mcpUrl": mcp_url(),
             "model": model_name() or None,
             "ready": model_name() is not None,

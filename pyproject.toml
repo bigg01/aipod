@@ -1,6 +1,6 @@
 [project]
 name = "aipod"
-version = "0.1.4"
+version = "0.1.5"
 description = "One binary, two modes: a reference MCP server that exercises every MCP feature, or a pydantic-ai agent that consumes it."
 readme = "README.md"
 license = "MIT"

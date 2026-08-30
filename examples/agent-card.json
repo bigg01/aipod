@@ -2,7 +2,7 @@
   "protocolVersion": "0.3.0",
   "name": "aipod-agent",
   "description": "A pydantic-ai agent that fulfils requests by calling tools from a connected aipod MCP server.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "url": "http://aipod.example:80/",
   "preferredTransport": "HTTP+JSON",
   "additionalInterfaces": [
