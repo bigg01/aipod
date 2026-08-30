@@ -1,0 +1,6 @@
+{
+  "type": "mcp",
+  "server_label": "aipod",
+  "server_url": "https://aipod.example.com/mcp",
+  "require_approval": "never"
+}

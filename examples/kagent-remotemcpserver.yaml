@@ -1,0 +1,13 @@
+# Register aipod as a remote MCP server for kagent (https://kagent.dev).
+# Point `url` at wherever `aipod server`'s Service actually lives — this
+# assumes the k8s/ manifests in this repo, deployed in the default namespace.
+apiVersion: kagent.dev/v1alpha3
+kind: RemoteMCPServer
+metadata:
+  name: aipod
+  namespace: kagent
+spec:
+  description: aipod reference MCP server
+  protocol: STREAMABLE_HTTP
+  url: http://aipod-server.default.svc.cluster.local:80/mcp
+  timeout: 30s

@@ -5,6 +5,9 @@
 | `contract.json` | service contract served at `GET /contract.json` | `make contract` (`uv run aipod server --print contract`) |
 | `agent-card.json` | agent card served at `GET /.well-known/agent-card.json` | `make card` (`uv run aipod agent --print agent-card`) |
 | `helm-values.yaml` | a production-ish override for the [`charts/aipod`](../charts/aipod) Helm chart | hand-maintained; mirrors `charts/aipod/values.yaml` |
+| `kagent-remotemcpserver.yaml` | registers aipod as a [kagent](https://kagent.dev) `RemoteMCPServer` | hand-maintained; illustrative, not applied by CI |
+| `kars-mcpserver.yaml` | registers aipod as an [Azure kars](https://github.com/Azure/kars) `McpServer` | hand-maintained; illustrative, not applied by CI |
+| `azure-ai-foundry-mcp-tool.json` | an Azure AI Foundry / Responses-API-shaped `mcp` tool definition pointing at aipod | hand-maintained; illustrative, not applied by CI |
 
 `contract.json` and `agent-card.json` are produced from the code, so they stay in
 sync — CI fails if the committed copies drift. Committed copies were generated

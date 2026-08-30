@@ -16,7 +16,12 @@ Built on [`FastMCP`](https://github.com/modelcontextprotocol/python-sdk) (server
 mode) and pydantic-ai's MCP client (agent mode). Packaged as a single
 `FROM scratch` container; the same image runs either mode.
 
-Repo: <https://github.com/bigg01/aipod>
+Repo: <https://github.com/bigg01/aipod> &nbsp;·&nbsp;
+Latest release: [**v0.1.1**](https://github.com/bigg01/aipod/releases/latest) &nbsp;·&nbsp;
+Image: [`ghcr.io/bigg01/aipod`](https://github.com/bigg01/aipod/pkgs/container/aipod) &nbsp;·&nbsp;
+Chart: `oci://ghcr.io/bigg01/charts/aipod`
+
+![aipod architecture: MCP clients and agent platforms talk to aipod server; aipod agent talks to aipod server and to a model](docs/architecture.svg)
 
 > Wondering why a *reference* MCP server and agent are worth having around? See
 > [`docs/blog/contracts-and-agent-cards.md`](docs/blog/contracts-and-agent-cards.md).
@@ -41,6 +46,11 @@ Repo: <https://github.com/bigg01/aipod>
 HTTP routes: `GET /` (landing), `GET /health`, `GET|POST /mcp`, `GET /contract.json`,
 and — when enabled — `GET /.well-known/oauth-protected-resource` (auth) and
 `GET /metrics` (Prometheus).
+
+`GET /` itself is a plain landing page listing every tool, resource, and
+prompt above — open it in a browser once the server is running:
+
+![aipod server's landing page at GET /, listing every tool, resource, and prompt](docs/screenshot-landing.png)
 
 ## Agent mode
 
@@ -202,15 +212,19 @@ One image, either mode. PyInstaller bundles the app, **staticx** folds in libc,
 the final image is `FROM scratch` (binary + `/tmp` + CA certs + `/etc/passwd`),
 ~34 MB.
 
-```bash
-docker build -t aipod:latest .
+Every release publishes it to the GitHub Container Registry (public, no login):
 
-docker run --rm -p 8000:8000 aipod:latest                      # server (default CMD)
+```bash
+docker pull ghcr.io/bigg01/aipod:0.1.1        # or :latest, :0.1, :sha-<commit>
+
+docker run --rm -p 8000:8000 ghcr.io/bigg01/aipod:latest       # server (default CMD)
 docker run --rm -p 8080:8080 \
   -e AIPOD_MCP_URL=http://host.docker.internal:8000/mcp \
   -e AIPOD_MODEL=anthropic:claude-haiku-4-5 -e ANTHROPIC_API_KEY=... \
-  aipod:latest agent --host 0.0.0.0 --port 8080                 # agent
+  ghcr.io/bigg01/aipod:latest agent --host 0.0.0.0 --port 8080  # agent
 ```
+
+Or build it yourself: `docker build -t aipod:latest .` (same result, `make docker`).
 
 The binary self-extracts into `TMPDIR` (`/tmp`) on start, so the runtime needs a
 writable `/tmp` even with a read-only root filesystem.
@@ -254,6 +268,44 @@ override. `make helm-lint` / `helm-template` / `helm-install`.
 Both pods run non-root, no capabilities, read-only rootfs, `RuntimeDefault`
 seccomp, with an `emptyDir` at `/tmp`.
 
+### On Azure Kubernetes Service (AKS)
+
+Same manifests, no Azure-specific changes needed beyond getting the image
+into a registry AKS can pull from:
+
+```bash
+az acr create -g my-rg -n myacr --sku Basic
+az acr build -r myacr -t aipod:latest .          # builds in ACR, no local push needed
+
+az aks create -g my-rg -n my-aks --attach-acr myacr
+az aks get-credentials -g my-rg -n my-aks
+
+# point k8s/kustomization.yaml's `images:` entry at myacr.azurecr.io/aipod, then:
+kubectl apply -k k8s/
+```
+
+`--attach-acr` wires AKS's kubelet identity to pull from that registry
+without a separate `imagePullSecret`.
+
+## Agent platforms
+
+Same server, same `/mcp` endpoint — different runtimes just point at it
+differently.
+
+- **[kagent](https://kagent.dev)** registers a remote MCP server as its own
+  CRD — see [`examples/kagent-remotemcpserver.yaml`](examples/kagent-remotemcpserver.yaml).
+  Apply it and kagent discovers every tool the same way it discovers its own
+  built-in tool server (`kubectl get remotemcpserver aipod -o yaml` →
+  `status.discoveredTools`).
+- **[kars](https://github.com/Azure/kars)** (Microsoft's Kubernetes-native
+  agent runtime) has its own `McpServer` CRD — OAuth, per-tool allow-lists,
+  and sandbox selectors included — see
+  [`examples/kars-mcpserver.yaml`](examples/kars-mcpserver.yaml).
+- **Azure AI Foundry** (and anything else using the same
+  Responses-API-shaped MCP tool) takes the endpoint straight in the
+  agent/tool definition, no separate resource — see
+  [`examples/azure-ai-foundry-mcp-tool.json`](examples/azure-ai-foundry-mcp-tool.json).
+
 ## CI / releases
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push / PR:
@@ -262,11 +314,16 @@ seccomp, with an `emptyDir` at `/tmp`.
 a `FROM scratch` image build with a `/health` + `/contract.json` smoke test.
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) runs on a
-`vX.Y.Z` tag (which must match the `pyproject.toml` version): pushes
-`ghcr.io/bigg01/aipod` (semver + `latest` + `sha` tags, SBOM + build provenance),
-pushes the Helm chart to `oci://ghcr.io/bigg01/charts`, builds the static
-`aipod-linux-x86_64` binary, and cuts a GitHub Release with the binary and chart
-attached.
+`vX.Y.Z` tag (which must match the `pyproject.toml` version) and produces, for
+that version:
+
+- **Container** — [`ghcr.io/bigg01/aipod`](https://github.com/bigg01/aipod/pkgs/container/aipod)
+  tagged `X.Y.Z` + `X.Y` + `latest` + `sha-<commit>`, with an SBOM and build
+  provenance attestation. Public — `docker pull` needs no login.
+- **Helm chart** — `oci://ghcr.io/bigg01/charts/aipod`, version pinned to the tag.
+- **Binary** — the static `aipod-linux-x86_64`.
+- **[GitHub Release](https://github.com/bigg01/aipod/releases/latest)** — notes
+  plus the binary and chart tarball attached.
 
 ## Governance
 

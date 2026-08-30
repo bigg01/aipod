@@ -2,8 +2,8 @@ apiVersion: v2
 name: aipod
 description: One image, two modes - a reference MCP server and a pydantic-ai agent
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.1.1
+appVersion: "0.1.1"
 home: https://github.com/bigg01/aipod
 sources:
   - https://github.com/bigg01/aipod

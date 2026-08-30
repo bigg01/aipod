@@ -1,0 +1,14 @@
+# Register aipod as an external MCP server for kars
+# (https://github.com/Azure/kars — Microsoft's Kubernetes-native agent
+# runtime). This assumes aipod is running open (the default); if it's
+# started with AIPOD_AUTH_ISSUER pointed at a real authorization server
+# (see README "Authentication"), add `productionMode: true` and an
+# `oauth` block matching that issuer.
+apiVersion: kars.azure.com/v1alpha1
+kind: McpServer
+metadata:
+  name: aipod
+  namespace: kars-my-agent
+spec:
+  url: http://aipod-server.default.svc.cluster.local:80/mcp
+  allowedTools: ["*"]
