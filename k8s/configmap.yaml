@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aipod-config
+  labels:
+    app.kubernetes.io/name: aipod
+# Shared by both modes. Governance labels populate the server's /contract.json
+# `governance` block and the agent card's `x-governance` block, so the documents
+# a deployment serves match the environment it runs in. Override per environment.
+data:
+  # agent -> server (in-cluster Service; adjust namespace if needed)
+  AIPOD_MCP_URL: "http://aipod-server.default.svc.cluster.local:80/mcp"
+  AIPOD_MODEL: "anthropic:claude-haiku-4-5"
+
+  AIPOD_OWNER: "unassigned@example.com"
+  AIPOD_DOMAIN: "reference/testing"
+  AIPOD_DATA_CLASSIFICATION: "PUBLIC" # PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED
+  AIPOD_DATA_RESIDENCY: "unspecified"
+  AIPOD_REGULATORY_SCOPE: "" # e.g. "GDPR,SOC2,EU-AI-Act:limited-risk"
+  AIPOD_AUTH_SCHEMES: "none" # governance label; e.g. "oauth2,mtls"
+  AIPOD_CONTAINS_PII: "false"
+  AIPOD_AUDIT_LOG: "stdout"
+
+  # Bearer-token auth is enabled by the `aipod-auth` Secret (AIPOD_API_KEY), not here.
+  AIPOD_AUTH_SCOPES: "" # CSV of scopes a caller must present, e.g. "mcp:invoke"
+  # AIPOD_AUTH_ISSUER: "https://id.example.com"   # real OAuth 2.1 authorization server
+  # AIPOD_PUBLIC_URL: "https://aipod.example.com" # externally reachable base URL

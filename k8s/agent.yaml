@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aipod-agent
+  labels:
+    app.kubernetes.io/name: aipod
+    app.kubernetes.io/component: agent
+spec:
+  replicas: 2 # stateless - each /ask builds a fresh agent
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aipod
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aipod
+        app.kubernetes.io/component: agent
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: aipod
+          image: ghcr.io/bigg01/aipod:latest
+          imagePullPolicy: IfNotPresent
+          args: ["agent", "--host", "0.0.0.0", "--port", "8080"]
+          envFrom:
+            - configMapRef:
+                name: aipod-config
+          env:
+            # Provider API key for AIPOD_MODEL. Create with:
+            #   kubectl create secret generic aipod-model --from-literal=ANTHROPIC_API_KEY=...
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aipod-model
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            # Bearer token for the MCP server, if it requires auth. Reuse the
+            # server's key: kubectl create secret generic aipod-auth --from-literal=AIPOD_API_KEY=...
+            - name: AIPOD_MCP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: aipod-auth
+                  key: AIPOD_API_KEY
+                  optional: true
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aipod-agent
+  labels:
+    app.kubernetes.io/name: aipod
+    app.kubernetes.io/component: agent
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: aipod
+    app.kubernetes.io/component: agent
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aipod-agent
+  labels:
+    app.kubernetes.io/name: aipod
+    app.kubernetes.io/component: agent
+spec:
+  rules:
+    - host: aipod.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aipod-agent
+                port:
+                  name: http

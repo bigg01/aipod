@@ -1,0 +1,2156 @@
+{
+  "service": "aipod",
+  "mode": "server",
+  "version": "0.1.0",
+  "mcpProtocolVersion": "2025-06-18",
+  "transport": {
+    "stdio": true,
+    "streamableHttp": "/mcp",
+    "endpoint": "http://aipod.example:80/mcp"
+  },
+  "security": {
+    "scheme": "none",
+    "note": "Server is open. Set --auth-token / AIPOD_API_KEY(S) to require a bearer token."
+  },
+  "clientRequirements": {
+    "authentication": {
+      "required": false,
+      "scheme": "none",
+      "note": "None. The server accepts unauthenticated requests."
+    },
+    "sampling": {
+      "required": false,
+      "requiredBy": [
+        "hero_bio",
+        "incident_postmortem",
+        "poet",
+        "summarize",
+        "weather_report"
+      ],
+      "note": "Only the pydantic-ai tools need sampling; every other feature works without it."
+    }
+  },
+  "governance": {
+    "owner": "unassigned@example.com",
+    "domain": "reference/testing",
+    "dataClassification": "PUBLIC",
+    "dataResidency": "unspecified",
+    "regulatoryScope": [],
+    "authenticationSchemes": [
+      "none"
+    ],
+    "containsPII": false,
+    "auditLogging": "stdout",
+    "dataRetention": "none (stateless per request)",
+    "dataEgress": {
+      "clientModelViaSampling": [
+        "hero_bio",
+        "incident_postmortem",
+        "poet",
+        "summarize",
+        "weather_report"
+      ],
+      "externalNetworkCalls": [],
+      "note": "The sampling tools forward prompt content to the connected client's model. No other tool makes outbound calls."
+    }
+  },
+  "tools": [
+    {
+      "name": "echo",
+      "title": "Echo",
+      "description": "Echo the input message back to the caller.",
+      "inputSchema": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "echoArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "echoOutput",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "add",
+      "title": "Add",
+      "description": "Add two numbers and describe the result.",
+      "inputSchema": {
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "number"
+          },
+          "b": {
+            "title": "B",
+            "type": "number"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "addArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "addOutput",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_tiny_image",
+      "title": "Get tiny image",
+      "description": "Return text interleaved with an image content block.",
+      "inputSchema": {
+        "properties": {},
+        "title": "get_tiny_imageArguments",
+        "type": "object"
+      },
+      "outputSchema": null,
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_annotated_message",
+      "title": "Get annotated message",
+      "description": "Return content blocks carrying priority and audience annotations.",
+      "inputSchema": {
+        "properties": {
+          "message_type": {
+            "enum": [
+              "error",
+              "success",
+              "debug"
+            ],
+            "title": "Message Type",
+            "type": "string"
+          },
+          "include_image": {
+            "default": false,
+            "title": "Include Image",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_type"
+        ],
+        "title": "get_annotated_messageArguments",
+        "type": "object"
+      },
+      "outputSchema": null,
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_structured_weather",
+      "title": "Get structured weather",
+      "description": "Return a typed Weather object so the client can validate it against the output schema.",
+      "inputSchema": {
+        "properties": {
+          "location": {
+            "enum": [
+              "New York",
+              "Chicago",
+              "Los Angeles"
+            ],
+            "title": "Location",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location"
+        ],
+        "title": "get_structured_weatherArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "description": "Structured weather payload returned by the weather tools.",
+        "properties": {
+          "location": {
+            "description": "City the reading is for",
+            "title": "Location",
+            "type": "string"
+          },
+          "temperature": {
+            "description": "Temperature in degrees Celsius",
+            "title": "Temperature",
+            "type": "number"
+          },
+          "conditions": {
+            "description": "Human readable sky conditions",
+            "title": "Conditions",
+            "type": "string"
+          },
+          "humidity": {
+            "description": "Relative humidity as a percentage",
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Humidity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location",
+          "temperature",
+          "conditions",
+          "humidity"
+        ],
+        "title": "Weather",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_resource_reference",
+      "title": "Get resource reference",
+      "description": "Return an embedded resource content block for a dynamic resource.",
+      "inputSchema": {
+        "properties": {
+          "resource_id": {
+            "default": 1,
+            "title": "Resource Id",
+            "type": "integer"
+          },
+          "kind": {
+            "default": "text",
+            "enum": [
+              "text",
+              "blob"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "title": "get_resource_referenceArguments",
+        "type": "object"
+      },
+      "outputSchema": null,
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_resource_links",
+      "title": "Get resource links",
+      "description": "Return between 1 and 10 resource_link blocks pointing at dynamic resources.",
+      "inputSchema": {
+        "properties": {
+          "count": {
+            "default": 3,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "title": "get_resource_linksArguments",
+        "type": "object"
+      },
+      "outputSchema": null,
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "trigger_long_running_operation",
+      "title": "Trigger long running operation",
+      "description": "Run a fake multi-step job, emitting a progress notification per step.",
+      "inputSchema": {
+        "properties": {
+          "steps": {
+            "default": 5,
+            "title": "Steps",
+            "type": "integer"
+          },
+          "step_seconds": {
+            "default": 1.0,
+            "title": "Step Seconds",
+            "type": "number"
+          }
+        },
+        "title": "trigger_long_running_operationArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "trigger_long_running_operationOutput",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": true,
+      "dataEgress": "none"
+    },
+    {
+      "name": "toggle_simulated_logging",
+      "title": "Toggle simulated logging",
+      "description": "Start or stop a background task that emits a random-level log message every 5s.",
+      "inputSchema": {
+        "properties": {},
+        "title": "toggle_simulated_loggingArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "toggle_simulated_loggingOutput",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": true,
+      "dataEgress": "none"
+    },
+    {
+      "name": "toggle_subscriber_updates",
+      "title": "Toggle subscriber updates",
+      "description": "Start or stop a background task that emits resources/updated for every subscribed resource.",
+      "inputSchema": {
+        "properties": {},
+        "title": "toggle_subscriber_updatesArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "toggle_subscriber_updatesOutput",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": true,
+      "dataEgress": "none"
+    },
+    {
+      "name": "poet",
+      "title": "Poet (pydantic-ai + sampling)",
+      "description": "A pydantic-ai agent writes a short rhyming poem; the LLM comes from the client via MCP sampling.",
+      "inputSchema": {
+        "properties": {
+          "theme": {
+            "title": "Theme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "title": "poetArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "poetOutput",
+        "type": "object"
+      },
+      "requiresSampling": true,
+      "sideEffects": false,
+      "dataEgress": "client-model-via-sampling"
+    },
+    {
+      "name": "summarize",
+      "title": "Summarize (pydantic-ai structured output + sampling)",
+      "description": "A pydantic-ai agent returns a structured Summary; the LLM comes from the client via MCP sampling.",
+      "inputSchema": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "summarizeArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "description": "Structured result produced by the `summarize` tool.",
+        "properties": {
+          "headline": {
+            "description": "A single sentence capturing the gist",
+            "title": "Headline",
+            "type": "string"
+          },
+          "summary": {
+            "description": "A short paragraph, 2-4 sentences",
+            "title": "Summary",
+            "type": "string"
+          },
+          "key_points": {
+            "description": "Three to five bullet takeaways",
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "headline",
+          "summary",
+          "key_points"
+        ],
+        "title": "Summary",
+        "type": "object"
+      },
+      "requiresSampling": true,
+      "sideEffects": false,
+      "dataEgress": "client-model-via-sampling"
+    },
+    {
+      "name": "weather_report",
+      "title": "Weather report (pydantic-ai + sampling)",
+      "description": "A pydantic-ai agent turns the structured readings for a city into a short spoken-style forecast.",
+      "inputSchema": {
+        "properties": {
+          "location": {
+            "enum": [
+              "New York",
+              "Chicago",
+              "Los Angeles"
+            ],
+            "title": "Location",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location"
+        ],
+        "title": "weather_reportArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "weather_reportOutput",
+        "type": "object"
+      },
+      "requiresSampling": true,
+      "sideEffects": false,
+      "dataEgress": "client-model-via-sampling"
+    },
+    {
+      "name": "list_heroes",
+      "title": "List heroes",
+      "description": "List the Marvel heroes in the roster, optionally filtered by team.",
+      "inputSchema": {
+        "properties": {
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Team"
+          }
+        },
+        "title": "list_heroesArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "Hero": {
+            "description": "One character in the roster.",
+            "properties": {
+              "codename": {
+                "description": "The hero's public alias, lower-case-slug form (e.g. 'spider-man')",
+                "title": "Codename",
+                "type": "string"
+              },
+              "name": {
+                "description": "Civilian / birth name",
+                "title": "Name",
+                "type": "string"
+              },
+              "teams": {
+                "description": "Team affiliations",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Teams",
+                "type": "array"
+              },
+              "powers": {
+                "description": "Broad power / skill categories",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Powers",
+                "type": "array"
+              },
+              "origin": {
+                "description": "One-sentence origin summary",
+                "title": "Origin",
+                "type": "string"
+              },
+              "first_appearance": {
+                "description": "Year the character first appeared in print",
+                "title": "First Appearance",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "codename",
+              "name",
+              "teams",
+              "powers",
+              "origin",
+              "first_appearance"
+            ],
+            "title": "Hero",
+            "type": "object"
+          }
+        },
+        "description": "A list of heroes plus its length, returned by the listing / search tools.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "heroes": {
+            "items": {
+              "$ref": "#/$defs/Hero"
+            },
+            "title": "Heroes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "heroes"
+        ],
+        "title": "HeroRoster",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_hero",
+      "title": "Get hero",
+      "description": "Return the full record for one hero by codename (e.g. 'spider-man').",
+      "inputSchema": {
+        "properties": {
+          "codename": {
+            "title": "Codename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codename"
+        ],
+        "title": "get_heroArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "description": "One character in the roster.",
+        "properties": {
+          "codename": {
+            "description": "The hero's public alias, lower-case-slug form (e.g. 'spider-man')",
+            "title": "Codename",
+            "type": "string"
+          },
+          "name": {
+            "description": "Civilian / birth name",
+            "title": "Name",
+            "type": "string"
+          },
+          "teams": {
+            "description": "Team affiliations",
+            "items": {
+              "type": "string"
+            },
+            "title": "Teams",
+            "type": "array"
+          },
+          "powers": {
+            "description": "Broad power / skill categories",
+            "items": {
+              "type": "string"
+            },
+            "title": "Powers",
+            "type": "array"
+          },
+          "origin": {
+            "description": "One-sentence origin summary",
+            "title": "Origin",
+            "type": "string"
+          },
+          "first_appearance": {
+            "description": "Year the character first appeared in print",
+            "title": "First Appearance",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "codename",
+          "name",
+          "teams",
+          "powers",
+          "origin",
+          "first_appearance"
+        ],
+        "title": "Hero",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "find_heroes_by_power",
+      "title": "Find heroes by power",
+      "description": "Return every hero whose power list matches the given substring (e.g. 'flight').",
+      "inputSchema": {
+        "properties": {
+          "power": {
+            "title": "Power",
+            "type": "string"
+          }
+        },
+        "required": [
+          "power"
+        ],
+        "title": "find_heroes_by_powerArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "Hero": {
+            "description": "One character in the roster.",
+            "properties": {
+              "codename": {
+                "description": "The hero's public alias, lower-case-slug form (e.g. 'spider-man')",
+                "title": "Codename",
+                "type": "string"
+              },
+              "name": {
+                "description": "Civilian / birth name",
+                "title": "Name",
+                "type": "string"
+              },
+              "teams": {
+                "description": "Team affiliations",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Teams",
+                "type": "array"
+              },
+              "powers": {
+                "description": "Broad power / skill categories",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Powers",
+                "type": "array"
+              },
+              "origin": {
+                "description": "One-sentence origin summary",
+                "title": "Origin",
+                "type": "string"
+              },
+              "first_appearance": {
+                "description": "Year the character first appeared in print",
+                "title": "First Appearance",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "codename",
+              "name",
+              "teams",
+              "powers",
+              "origin",
+              "first_appearance"
+            ],
+            "title": "Hero",
+            "type": "object"
+          }
+        },
+        "description": "A list of heroes plus its length, returned by the listing / search tools.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "heroes": {
+            "items": {
+              "$ref": "#/$defs/Hero"
+            },
+            "title": "Heroes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "heroes"
+        ],
+        "title": "HeroRoster",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "assemble_team",
+      "title": "Assemble team",
+      "description": "Pick the heroes whose powers best fit a described threat (deterministic).",
+      "inputSchema": {
+        "properties": {
+          "threat": {
+            "title": "Threat",
+            "type": "string"
+          },
+          "size": {
+            "default": 3,
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "threat"
+        ],
+        "title": "assemble_teamArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "TeamPick": {
+            "properties": {
+              "codename": {
+                "title": "Codename",
+                "type": "string"
+              },
+              "reason": {
+                "description": "Why this hero fits the stated threat",
+                "title": "Reason",
+                "type": "string"
+              }
+            },
+            "required": [
+              "codename",
+              "reason"
+            ],
+            "title": "TeamPick",
+            "type": "object"
+          }
+        },
+        "description": "The output of ``assemble_team``.",
+        "properties": {
+          "threat": {
+            "title": "Threat",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/$defs/TeamPick"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "threat",
+          "members"
+        ],
+        "title": "MissionTeam",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "hero_bio",
+      "title": "Hero bio (pydantic-ai + sampling)",
+      "description": "A pydantic-ai agent writes a short in-universe bio from the hero's facts; the LLM comes from the client via MCP sampling.",
+      "inputSchema": {
+        "properties": {
+          "codename": {
+            "title": "Codename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "codename"
+        ],
+        "title": "hero_bioArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "hero_bioOutput",
+        "type": "object"
+      },
+      "requiresSampling": true,
+      "sideEffects": false,
+      "dataEgress": "client-model-via-sampling"
+    },
+    {
+      "name": "list_services",
+      "title": "List services",
+      "description": "List the application/service catalogue, optionally filtered by tier or environment.",
+      "inputSchema": {
+        "properties": {
+          "tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tier"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Environment"
+          }
+        },
+        "title": "list_servicesArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "Service": {
+            "description": "One application / service in the catalogue.",
+            "properties": {
+              "name": {
+                "title": "Name",
+                "type": "string"
+              },
+              "tier": {
+                "description": "1 = business critical, 3 = best effort",
+                "maximum": 3,
+                "minimum": 1,
+                "title": "Tier",
+                "type": "integer"
+              },
+              "team": {
+                "title": "Team",
+                "type": "string"
+              },
+              "environments": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Environments",
+                "type": "array"
+              },
+              "depends_on": {
+                "description": "Other services this one calls",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Depends On",
+                "type": "array"
+              },
+              "slo_availability": {
+                "description": "Target availability %, e.g. 99.9",
+                "title": "Slo Availability",
+                "type": "number"
+              },
+              "slo_latency_p99_ms": {
+                "description": "Target 99th-percentile latency in ms",
+                "title": "Slo Latency P99 Ms",
+                "type": "integer"
+              },
+              "repo": {
+                "title": "Repo",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "tier",
+              "team",
+              "environments",
+              "depends_on",
+              "slo_availability",
+              "slo_latency_p99_ms",
+              "repo"
+            ],
+            "title": "Service",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/$defs/Service"
+            },
+            "title": "Services",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "services"
+        ],
+        "title": "ServiceList",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_service",
+      "title": "Get service",
+      "description": "Return one service's catalogue entry: tier, team, dependencies, SLOs, repo.",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "get_serviceArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "description": "One application / service in the catalogue.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tier": {
+            "description": "1 = business critical, 3 = best effort",
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Tier",
+            "type": "integer"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          },
+          "environments": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Environments",
+            "type": "array"
+          },
+          "depends_on": {
+            "description": "Other services this one calls",
+            "items": {
+              "type": "string"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "slo_availability": {
+            "description": "Target availability %, e.g. 99.9",
+            "title": "Slo Availability",
+            "type": "number"
+          },
+          "slo_latency_p99_ms": {
+            "description": "Target 99th-percentile latency in ms",
+            "title": "Slo Latency P99 Ms",
+            "type": "integer"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "tier",
+          "team",
+          "environments",
+          "depends_on",
+          "slo_availability",
+          "slo_latency_p99_ms",
+          "repo"
+        ],
+        "title": "Service",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "check_service_health",
+      "title": "Check service health",
+      "description": "Roll up synthetic metrics, SLOs, and open incidents into a healthy/degraded/down verdict.",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "check_service_healthArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "Metrics": {
+            "properties": {
+              "requests_per_second": {
+                "title": "Requests Per Second",
+                "type": "number"
+              },
+              "error_rate_pct": {
+                "title": "Error Rate Pct",
+                "type": "number"
+              },
+              "latency_p50_ms": {
+                "title": "Latency P50 Ms",
+                "type": "integer"
+              },
+              "latency_p95_ms": {
+                "title": "Latency P95 Ms",
+                "type": "integer"
+              },
+              "latency_p99_ms": {
+                "title": "Latency P99 Ms",
+                "type": "integer"
+              },
+              "saturation_pct": {
+                "description": "Busiest resource (CPU / pool) utilisation",
+                "title": "Saturation Pct",
+                "type": "number"
+              }
+            },
+            "required": [
+              "requests_per_second",
+              "error_rate_pct",
+              "latency_p50_ms",
+              "latency_p95_ms",
+              "latency_p99_ms",
+              "saturation_pct"
+            ],
+            "title": "Metrics",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "healthy",
+              "degraded",
+              "down"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "metrics": {
+            "$ref": "#/$defs/Metrics"
+          },
+          "open_incident_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Open Incident Ids",
+            "type": "array"
+          },
+          "slo_availability": {
+            "title": "Slo Availability",
+            "type": "number"
+          },
+          "slo_latency_p99_ms": {
+            "title": "Slo Latency P99 Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "service",
+          "status",
+          "reasons",
+          "metrics",
+          "open_incident_ids",
+          "slo_availability",
+          "slo_latency_p99_ms"
+        ],
+        "title": "HealthReport",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "error_budget",
+      "title": "Error budget",
+      "description": "Compute the remaining SLO error budget and current burn rate for a service.",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "window_days": {
+            "default": 30,
+            "title": "Window Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "error_budgetArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "window_days": {
+            "title": "Window Days",
+            "type": "integer"
+          },
+          "slo_availability": {
+            "title": "Slo Availability",
+            "type": "number"
+          },
+          "budget_minutes": {
+            "description": "Total downtime allowed in the window",
+            "title": "Budget Minutes",
+            "type": "number"
+          },
+          "consumed_minutes": {
+            "title": "Consumed Minutes",
+            "type": "number"
+          },
+          "remaining_pct": {
+            "title": "Remaining Pct",
+            "type": "number"
+          },
+          "burn_rate": {
+            "description": "Multiples of the sustainable rate; >1 is too fast",
+            "title": "Burn Rate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "service",
+          "window_days",
+          "slo_availability",
+          "budget_minutes",
+          "consumed_minutes",
+          "remaining_pct",
+          "burn_rate"
+        ],
+        "title": "ErrorBudget",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "search_logs",
+      "title": "Search logs",
+      "description": "Search a service's (synthetic, deterministic) log stream for a substring, optionally by level.",
+      "inputSchema": {
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "query": {
+            "default": "",
+            "title": "Query",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Level"
+          },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "service"
+        ],
+        "title": "search_logsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "LogLine": {
+            "properties": {
+              "timestamp": {
+                "title": "Timestamp",
+                "type": "string"
+              },
+              "level": {
+                "title": "Level",
+                "type": "string"
+              },
+              "service": {
+                "title": "Service",
+                "type": "string"
+              },
+              "message": {
+                "title": "Message",
+                "type": "string"
+              }
+            },
+            "required": [
+              "timestamp",
+              "level",
+              "service",
+              "message"
+            ],
+            "title": "LogLine",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/$defs/LogLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service",
+          "query",
+          "count",
+          "lines"
+        ],
+        "title": "LogSearchResult",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "list_incidents",
+      "title": "List incidents",
+      "description": "List incidents, optionally filtered by status, severity, or service.",
+      "inputSchema": {
+        "properties": {
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Service"
+          }
+        },
+        "title": "list_incidentsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "Incident": {
+            "properties": {
+              "id": {
+                "title": "Id",
+                "type": "string"
+              },
+              "service": {
+                "title": "Service",
+                "type": "string"
+              },
+              "severity": {
+                "enum": [
+                  "SEV1",
+                  "SEV2",
+                  "SEV3",
+                  "SEV4"
+                ],
+                "title": "Severity",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "open",
+                  "acknowledged",
+                  "mitigated",
+                  "resolved"
+                ],
+                "title": "Status",
+                "type": "string"
+              },
+              "summary": {
+                "title": "Summary",
+                "type": "string"
+              },
+              "opened_at": {
+                "title": "Opened At",
+                "type": "string"
+              },
+              "updated_at": {
+                "title": "Updated At",
+                "type": "string"
+              },
+              "notes": {
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "title": "Notes",
+                "type": "array"
+              }
+            },
+            "required": [
+              "id",
+              "service",
+              "severity",
+              "status",
+              "summary",
+              "opened_at",
+              "updated_at"
+            ],
+            "title": "Incident",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "incidents": {
+            "items": {
+              "$ref": "#/$defs/Incident"
+            },
+            "title": "Incidents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "incidents"
+        ],
+        "title": "IncidentList",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "open_incident",
+      "title": "Open incident",
+      "description": "Open a new incident against a service. Mutates server-side state.",
+      "inputSchema": {
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "SEV1",
+              "SEV2",
+              "SEV3",
+              "SEV4"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "severity",
+          "summary"
+        ],
+        "title": "open_incidentArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "SEV1",
+              "SEV2",
+              "SEV3",
+              "SEV4"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "acknowledged",
+              "mitigated",
+              "resolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "opened_at": {
+            "title": "Opened At",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "notes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "service",
+          "severity",
+          "status",
+          "summary",
+          "opened_at",
+          "updated_at"
+        ],
+        "title": "Incident",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": true,
+      "dataEgress": "none"
+    },
+    {
+      "name": "update_incident",
+      "title": "Update incident",
+      "description": "Move an incident to a new status (acknowledged/mitigated/resolved) with an optional note. Mutates state.",
+      "inputSchema": {
+        "properties": {
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "acknowledged",
+              "mitigated",
+              "resolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "incident_id",
+          "status"
+        ],
+        "title": "update_incidentArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "SEV1",
+              "SEV2",
+              "SEV3",
+              "SEV4"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "acknowledged",
+              "mitigated",
+              "resolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "opened_at": {
+            "title": "Opened At",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "notes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "service",
+          "severity",
+          "status",
+          "summary",
+          "opened_at",
+          "updated_at"
+        ],
+        "title": "Incident",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": true,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_oncall",
+      "title": "Get on-call",
+      "description": "Who is on call for a team or for the team that owns a service, plus the escalation order.",
+      "inputSchema": {
+        "properties": {
+          "team_or_service": {
+            "title": "Team Or Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team_or_service"
+        ],
+        "title": "get_oncallArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "team": {
+            "title": "Team",
+            "type": "string"
+          },
+          "engineer": {
+            "title": "Engineer",
+            "type": "string"
+          },
+          "escalation": {
+            "description": "Who to page next, in order",
+            "items": {
+              "type": "string"
+            },
+            "title": "Escalation",
+            "type": "array"
+          }
+        },
+        "required": [
+          "team",
+          "engineer",
+          "escalation"
+        ],
+        "title": "OnCall",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "list_deployments",
+      "title": "List deployments",
+      "description": "List recent deployments, optionally filtered by service or status.",
+      "inputSchema": {
+        "properties": {
+          "service": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Service"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          }
+        },
+        "title": "list_deploymentsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "Deployment": {
+            "properties": {
+              "id": {
+                "title": "Id",
+                "type": "string"
+              },
+              "service": {
+                "title": "Service",
+                "type": "string"
+              },
+              "version": {
+                "title": "Version",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "succeeded",
+                  "failed",
+                  "rolled_back",
+                  "in_progress"
+                ],
+                "title": "Status",
+                "type": "string"
+              },
+              "started_at": {
+                "title": "Started At",
+                "type": "string"
+              },
+              "can_rollback": {
+                "title": "Can Rollback",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "service",
+              "version",
+              "status",
+              "started_at",
+              "can_rollback"
+            ],
+            "title": "Deployment",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "deployments": {
+            "items": {
+              "$ref": "#/$defs/Deployment"
+            },
+            "title": "Deployments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "deployments"
+        ],
+        "title": "DeploymentList",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "rollback_deployment",
+      "title": "Roll back deployment",
+      "description": "Roll back a deployment by id (simulated). Mutates server-side state.",
+      "inputSchema": {
+        "properties": {
+          "deployment_id": {
+            "title": "Deployment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deployment_id"
+        ],
+        "title": "rollback_deploymentArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "succeeded",
+              "failed",
+              "rolled_back",
+              "in_progress"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "can_rollback": {
+            "title": "Can Rollback",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "service",
+          "version",
+          "status",
+          "started_at",
+          "can_rollback"
+        ],
+        "title": "Deployment",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": true,
+      "dataEgress": "none"
+    },
+    {
+      "name": "get_runbook",
+      "title": "Get runbook",
+      "description": "Return the runbook entries for a service, optionally narrowed to a symptom.",
+      "inputSchema": {
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "symptom": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Symptom"
+          }
+        },
+        "required": [
+          "service"
+        ],
+        "title": "get_runbookArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "$defs": {
+          "RunbookEntry": {
+            "properties": {
+              "symptom": {
+                "title": "Symptom",
+                "type": "string"
+              },
+              "steps": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Steps",
+                "type": "array"
+              }
+            },
+            "required": [
+              "symptom",
+              "steps"
+            ],
+            "title": "RunbookEntry",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/RunbookEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service",
+          "entries"
+        ],
+        "title": "Runbook",
+        "type": "object"
+      },
+      "requiresSampling": false,
+      "sideEffects": false,
+      "dataEgress": "none"
+    },
+    {
+      "name": "incident_postmortem",
+      "title": "Incident postmortem (pydantic-ai + sampling)",
+      "description": "A pydantic-ai agent drafts a short blameless postmortem from an incident's facts; the LLM comes from the client via MCP sampling.",
+      "inputSchema": {
+        "properties": {
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_id"
+        ],
+        "title": "incident_postmortemArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "incident_postmortemOutput",
+        "type": "object"
+      },
+      "requiresSampling": true,
+      "sideEffects": false,
+      "dataEgress": "client-model-via-sampling"
+    }
+  ],
+  "resources": {
+    "static": [
+      {
+        "uri": "demo://resource/static/instructions.md",
+        "name": "Server instructions",
+        "description": "Overview of what this server implements.",
+        "mimeType": "text/markdown"
+      },
+      {
+        "uri": "demo://resource/static/features.md",
+        "name": "Feature list",
+        "description": "The full list of tools, resources, and prompts.",
+        "mimeType": "text/markdown"
+      }
+    ],
+    "templates": [
+      {
+        "uriTemplate": "demo://resource/dynamic/text/{resource_id}",
+        "name": "Dynamic text resource",
+        "description": "A plaintext resource fabricated from a positive-integer {resource_id}.",
+        "mimeType": "text/plain"
+      },
+      {
+        "uriTemplate": "demo://resource/dynamic/blob/{resource_id}",
+        "name": "Dynamic blob resource",
+        "description": "A binary resource fabricated from a positive-integer {resource_id}.",
+        "mimeType": "application/octet-stream"
+      },
+      {
+        "uriTemplate": "hero://roster/{codename}",
+        "name": "Hero record",
+        "description": "One Marvel hero as JSON, addressed by codename (e.g. hero://roster/storm).",
+        "mimeType": "application/json"
+      },
+      {
+        "uriTemplate": "service://catalog/{name}",
+        "name": "Service catalogue entry",
+        "description": "One service's catalogue entry as JSON (e.g. service://catalog/checkout-api).",
+        "mimeType": "application/json"
+      },
+      {
+        "uriTemplate": "runbook://{service}",
+        "name": "Service runbook",
+        "description": "The runbook for a service as Markdown (e.g. runbook://checkout-api).",
+        "mimeType": "text/markdown"
+      }
+    ]
+  },
+  "prompts": [
+    {
+      "name": "simple_prompt",
+      "title": "Simple prompt",
+      "description": "A prompt that takes no arguments.",
+      "arguments": []
+    },
+    {
+      "name": "args_prompt",
+      "title": "Arguments prompt",
+      "description": "A prompt with a required city and an optional state.",
+      "arguments": [
+        {
+          "name": "city",
+          "description": null,
+          "required": true
+        },
+        {
+          "name": "state",
+          "description": null,
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "completable_prompt",
+      "title": "Completable prompt",
+      "description": "Pick a department, then a team member; both arguments offer completions.",
+      "arguments": [
+        {
+          "name": "department",
+          "description": null,
+          "required": true
+        },
+        {
+          "name": "name",
+          "description": null,
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "resource_prompt",
+      "title": "Resource prompt",
+      "description": "A prompt whose message list embeds a dynamic resource.",
+      "arguments": [
+        {
+          "name": "resource_id",
+          "description": null,
+          "required": false
+        },
+        {
+          "name": "kind",
+          "description": null,
+          "required": false
+        }
+      ]
+    }
+  ],
+  "capabilities": [
+    "tools",
+    "resources",
+    "resources.subscribe",
+    "resources.templates",
+    "prompts",
+    "completions",
+    "logging",
+    "progress"
+  ]
+}
