@@ -7,6 +7,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
 
+from .. import telemetry
 from ..branding import LOGO_SVG
 from .card import agent_card
 from .config import mcp_url, model_name
@@ -63,6 +64,10 @@ async def _agent_card(request: Request) -> JSONResponse:
     return JSONResponse(agent_card(str(request.base_url)))
 
 
+async def _metrics(_request: Request):  # type: ignore[no-untyped-def]
+    return telemetry.prometheus_response()
+
+
 async def _ask(request: Request) -> JSONResponse:
     if model_name() is None:
         return JSONResponse(
@@ -81,12 +86,13 @@ async def _ask(request: Request) -> JSONResponse:
 
 
 def build_app() -> Starlette:
-    return Starlette(
-        routes=[
-            Route("/", _homepage, methods=["GET"]),
-            Route("/health", _health, methods=["GET"]),
-            Route("/.well-known/agent-card.json", _agent_card, methods=["GET"]),
-            Route("/.well-known/agent.json", _agent_card, methods=["GET"]),
-            Route("/ask", _ask, methods=["POST"]),
-        ]
-    )
+    routes = [
+        Route("/", _homepage, methods=["GET"]),
+        Route("/health", _health, methods=["GET"]),
+        Route("/.well-known/agent-card.json", _agent_card, methods=["GET"]),
+        Route("/.well-known/agent.json", _agent_card, methods=["GET"]),
+        Route("/ask", _ask, methods=["POST"]),
+    ]
+    if telemetry.prometheus_enabled():
+        routes.append(Route("/metrics", _metrics, methods=["GET"]))
+    return Starlette(routes=routes)

@@ -108,6 +108,7 @@ _LANDING_HTML = """<!doctype html>
         <li>Resource subscriptions</li>
         <li>Client-controlled logging level</li>
         <li>Optional bearer auth (OAuth 2.1 protected resource)</li>
+        <li>Optional OpenTelemetry metrics (<code>/metrics</code>)</li>
       </ul>
     </div>
   </div>

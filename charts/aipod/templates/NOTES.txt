@@ -1,0 +1,40 @@
+aipod {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+{{ if .Values.server.enabled -}}
+Server mode (MCP):
+  Service   {{ include "aipod.serverName" . }}:{{ .Values.server.service.port }}
+  In-cluster MCP endpoint  {{ include "aipod.mcpUrl" . }}
+  Port-forward:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "aipod.serverName" . }} 8000:{{ .Values.server.service.port }}
+    # then: npx -y @modelcontextprotocol/inspector@2.4.0 --cli http://127.0.0.1:8000/mcp --method tools/list
+{{- if .Values.server.ingress.enabled }}
+  Ingress   http{{ if .Values.server.ingress.tls }}s{{ end }}://{{ .Values.server.ingress.host }}{{ .Values.server.ingress.path }}
+{{- end }}
+{{ end -}}
+{{ if .Values.agent.enabled -}}
+Agent mode:
+  Service   {{ include "aipod.agentName" . }}:{{ .Values.agent.service.port }}
+  Port-forward:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "aipod.agentName" . }} 8080:{{ .Values.agent.service.port }}
+    curl -s localhost:8080/.well-known/agent-card.json
+{{- if .Values.agent.ingress.enabled }}
+  Ingress   http{{ if .Values.agent.ingress.tls }}s{{ end }}://{{ .Values.agent.ingress.host }}{{ .Values.agent.ingress.path }}
+{{- end }}
+{{ end -}}
+{{ if .Values.auth.enabled }}
+Bearer auth is ENABLED. Callers must send  Authorization: Bearer <key>
+{{- if and .Values.auth.apiKey (not .Values.auth.existingSecret) }}
+  Key stored in Secret/{{ include "aipod.authSecretName" . }} (key {{ .Values.auth.secretKey }}).
+{{- else if .Values.auth.existingSecret }}
+  Key read from existing Secret/{{ .Values.auth.existingSecret }} (key {{ .Values.auth.secretKey }}).
+{{- else }}
+  WARNING: auth.enabled=true but no auth.apiKey / auth.existingSecret given - the
+  pods will not start until Secret/{{ include "aipod.authSecretName" . }} exists.
+{{- end }}
+{{- else }}
+Bearer auth is disabled - the server runs open.
+{{- end }}
+{{ if and .Values.agent.enabled (not .Values.model.apiKey) (not .Values.model.existingSecret) }}
+No model key configured: agent /ask returns 503 until Secret/{{ include "aipod.modelSecretName" . }}
+(key {{ .Values.model.apiKeyName }}) exists. Set model.apiKey or model.existingSecret.
+{{- end }}

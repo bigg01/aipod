@@ -25,3 +25,11 @@ data:
   AIPOD_AUTH_SCOPES: "" # CSV of scopes a caller must present, e.g. "mcp:invoke"
   # AIPOD_AUTH_ISSUER: "https://id.example.com"   # real OAuth 2.1 authorization server
   # AIPOD_PUBLIC_URL: "https://aipod.example.com" # externally reachable base URL
+
+  # OpenTelemetry metrics (both modes). Off unless AIPOD_METRICS is set.
+  AIPOD_METRICS: "" # "" | otlp | prometheus | console
+  # exporter: otlp -> point at your collector (OTLP/HTTP):
+  # OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability:4318"
+  # OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=prod"
+  # exporter: prometheus -> each mode serves /metrics on its HTTP port; the
+  # Deployments carry prometheus.io/scrape annotations for it.

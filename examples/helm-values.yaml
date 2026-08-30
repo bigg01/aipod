@@ -1,0 +1,63 @@
+# Example override for the aipod Helm chart (charts/aipod).
+#   helm install aipod oci://ghcr.io/bigg01/charts/aipod \
+#     --version 0.1.0 -f examples/helm-values.yaml
+#
+# Full set of keys: charts/aipod/values.yaml
+
+image:
+  tag: "0.1.0" # pin instead of tracking the chart appVersion
+
+# Bearer auth on: /mcp becomes an OAuth 2.1 protected resource and the agent
+# forwards the same key. Here the key lives in a Secret you manage:
+#   kubectl create secret generic aipod-auth --from-literal=AIPOD_API_KEY=$(openssl rand -hex 16)
+auth:
+  enabled: true
+  existingSecret: aipod-auth
+  secretKey: AIPOD_API_KEY
+
+# Model-provider key for agent mode, from a Secret you manage:
+#   kubectl create secret generic aipod-model --from-literal=ANTHROPIC_API_KEY=sk-...
+model:
+  existingSecret: aipod-model
+  apiKeyName: ANTHROPIC_API_KEY
+
+# Governance labels flow into /contract.json `governance` and the agent card's
+# `x-governance` block - set them to match the environment.
+config:
+  AIPOD_MODEL: "anthropic:claude-haiku-4-5"
+  AIPOD_OWNER: "platform-team@example.com"
+  AIPOD_DOMAIN: "reference/testing"
+  AIPOD_DATA_CLASSIFICATION: "INTERNAL"
+  AIPOD_DATA_RESIDENCY: "eu-central-1"
+  AIPOD_REGULATORY_SCOPE: "GDPR,SOC2"
+  AIPOD_AUTH_SCHEMES: "oauth2"
+  AIPOD_CONTAINS_PII: "false"
+  AIPOD_AUTH_SCOPES: "mcp:invoke"
+  AIPOD_PUBLIC_URL: "https://mcp.example.com"
+  AIPOD_AUTH_ISSUER: "https://id.example.com"
+
+# OpenTelemetry metrics -> push to an in-cluster OTLP/HTTP collector.
+metrics:
+  exporter: otlp
+  otlpEndpoint: http://otel-collector.observability:4318
+  resourceAttributes: deployment.environment=prod
+  # (with exporter: prometheus instead, pods get prometheus.io/scrape annotations)
+
+server:
+  ingress:
+    enabled: true
+    className: nginx
+    host: mcp.example.com
+    tls:
+      - hosts: [mcp.example.com]
+        secretName: aipod-server-tls
+
+agent:
+  replicas: 3
+  ingress:
+    enabled: true
+    className: nginx
+    host: aipod.example.com
+    tls:
+      - hosts: [aipod.example.com]
+        secretName: aipod-agent-tls

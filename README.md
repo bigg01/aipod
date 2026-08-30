@@ -35,10 +35,12 @@ Repo: <https://github.com/bigg01/aipod>
 | Resources | static docs + templated `demo://resource/dynamic/{text,blob}/{resource_id}`, `hero://roster/{codename}`, `service://catalog/{name}`, `runbook://{service}` |
 | Prompts | `simple_prompt`, `args_prompt`, `completable_prompt`, `resource_prompt` |
 | Auth | **open by default**; add a key and `/mcp` becomes an OAuth 2.1 protected resource (bearer token + `/.well-known/oauth-protected-resource`) |
+| Metrics | **off by default**; OpenTelemetry per-tool call count + duration, exported via OTLP / Prometheus `/metrics` / console |
 | Also | argument completion, resource subscriptions, progress, `logging/setLevel` |
 
 HTTP routes: `GET /` (landing), `GET /health`, `GET|POST /mcp`, `GET /contract.json`,
-and — when auth is enabled — `GET /.well-known/oauth-protected-resource`.
+and — when enabled — `GET /.well-known/oauth-protected-resource` (auth) and
+`GET /metrics` (Prometheus).
 
 ## Agent mode
 
@@ -130,6 +132,37 @@ curl -s http://127.0.0.1:8000/.well-known/oauth-protected-resource | jq
 
 Full walkthrough in [`docs/testing-mcp.md`](docs/testing-mcp.md#authentication).
 
+## Observability (OpenTelemetry)
+
+Both modes emit OpenTelemetry **metrics** — off until you ask for an exporter.
+
+| Instrument | Type | Attributes |
+| --- | --- | --- |
+| `mcp.server.tool.calls` | counter | `mcp.tool.name`, `outcome` (`ok`/`error`), `mcp.tool.sampling` |
+| `mcp.server.tool.duration` | histogram (s) | same |
+| `aipod.agent.ask.calls` | counter | `outcome` |
+| `aipod.agent.ask.duration` | histogram (s) | `outcome` |
+
+Turn it on with `AIPOD_METRICS` (or the standard `OTEL_*` vars):
+
+```bash
+# scrape endpoint on the mode's HTTP port
+AIPOD_METRICS=prometheus uv run aipod server   # -> GET /metrics
+curl -s localhost:8000/metrics | grep mcp_server_tool
+
+# push to an OTLP/HTTP collector
+AIPOD_METRICS=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 uv run aipod agent
+
+# quick look on stdout
+AIPOD_METRICS=console uv run aipod server
+```
+
+`AIPOD_METRICS` = `otlp` \| `prometheus` \| `console` (`none` / unset = off);
+`OTEL_METRICS_EXPORTER` or a bare `OTEL_EXPORTER_OTLP_ENDPOINT` also switch it on;
+`OTEL_SDK_DISABLED=true` forces it off. `OTEL_SERVICE_NAME` /
+`OTEL_RESOURCE_ATTRIBUTES` set the resource. In k8s: `metrics.exporter` in the
+Helm values, or `AIPOD_METRICS` in `k8s/configmap.yaml`.
+
 ## Test
 
 ```bash
@@ -184,7 +217,11 @@ writable `/tmp` even with a read-only root filesystem.
 
 ## Kubernetes
 
-[`k8s/`](k8s/) deploys **both** modes from the one image (`kubectl apply -k k8s`):
+Both modes deploy from the one image, two ways:
+
+### Kustomize — [`k8s/`](k8s/)
+
+`kubectl apply -k k8s`:
 
 - `Deployment/aipod-server` (+ `Service/aipod-server`) — `replicas: 1` (per-session
   state + background tasks live in memory)
@@ -196,8 +233,40 @@ writable `/tmp` even with a read-only root filesystem.
   server and is reused by the agent as `AIPOD_MCP_TOKEN`
   (`kubectl create secret generic aipod-auth --from-literal=AIPOD_API_KEY=$(openssl rand -hex 16)`)
 
+### Helm — [`charts/aipod/`](charts/aipod/)
+
+```bash
+# from a checkout
+helm install aipod ./charts/aipod
+
+# or the published OCI chart
+helm install aipod oci://ghcr.io/bigg01/charts/aipod --version 0.1.0 \
+  -f examples/helm-values.yaml
+```
+
+Same objects, parameterised: `server.enabled` / `agent.enabled`, `*.replicas`,
+`*.ingress.*`, `*.resources`, the `config` map, and `auth` / `model` (inline key ⇒
+the chart makes the Secret, or point at `*.existingSecret`). Full list in
+[`charts/aipod/values.yaml`](charts/aipod/values.yaml);
+[`examples/helm-values.yaml`](examples/helm-values.yaml) is a TLS-ingress + bearer-auth
+override. `make helm-lint` / `helm-template` / `helm-install`.
+
 Both pods run non-root, no capabilities, read-only rootfs, `RuntimeDefault`
 seccomp, with an `emptyDir` at `/tmp`.
+
+## CI / releases
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push / PR:
+`pytest` on Python 3.11–3.13, `uv build`, `uv lock --check`, a check that
+`examples/` is in sync, `helm lint` + `kubeconform` on the rendered manifests, and
+a `FROM scratch` image build with a `/health` + `/contract.json` smoke test.
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs on a
+`vX.Y.Z` tag (which must match the `pyproject.toml` version): pushes
+`ghcr.io/bigg01/aipod` (semver + `latest` + `sha` tags, SBOM + build provenance),
+pushes the Helm chart to `oci://ghcr.io/bigg01/charts`, builds the static
+`aipod-linux-x86_64` binary, and cuts a GitHub Release with the binary and chart
+attached.
 
 ## Governance
 
@@ -225,6 +294,7 @@ than on tool names.
 src/aipod/
   __main__.py          CLI - `aipod server` | `aipod agent`
   governance.py        shared AIPOD_* governance labels
+  telemetry.py         OpenTelemetry metrics (both modes)
   server/
     build.py           every MCP feature on one FastMCP instance
     sampling_tools.py   pydantic-ai tools (model via MCP sampling)
@@ -236,11 +306,13 @@ src/aipod/
   agent/
     runtime.py          pydantic-ai Agent + MCP toolset -> the server
     card.py             agent card builder
-    http.py             Starlette app: card, /health, /ask
+    http.py             Starlette app: card, /health, /ask, /metrics
     config.py           AIPOD_MCP_URL, AIPOD_MODEL, ...
 packaging/  PyInstaller entry + spec
-examples/   generated contract.json + agent-card.json
+examples/   generated contract.json + agent-card.json + helm-values.yaml
 k8s/        both Deployments, Services, Ingress, ConfigMap, kustomization
+charts/aipod/  Helm chart (same objects, parameterised)
+.github/workflows/  ci.yml (test + build) + release.yml (image + chart + binary)
 docs/       testing-mcp.md (Inspector walkthrough) + blog/ (contracts & agent cards)
 tests/      test_server.py + test_agent.py
 ```

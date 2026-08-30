@@ -8,9 +8,12 @@ provider API key); without one the agent can still describe itself but not run.
 
 from __future__ import annotations
 
+import time
+
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPToolset
 
+from .. import telemetry
 from .config import mcp_token, mcp_url, model_name
 
 INSTRUCTIONS = """\
@@ -49,6 +52,14 @@ async def ask(prompt: str, *, model: str | None = None) -> str:
     """Run a single request through the agent and return its text output."""
 
     agent = build_agent(model)
-    async with agent:
-        result = await agent.run(prompt)
-    return result.output
+    started = time.perf_counter()
+    ok = True
+    try:
+        async with agent:
+            result = await agent.run(prompt)
+        return result.output
+    except BaseException:
+        ok = False
+        raise
+    finally:
+        telemetry.record_agent_ask(ok=ok, duration_s=time.perf_counter() - started)

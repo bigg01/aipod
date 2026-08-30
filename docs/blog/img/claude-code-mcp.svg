@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="292" viewBox="0 0 920 292">
+  <defs>
+    <clipPath id="rounded"><rect x="0" y="0" width="920" height="292" rx="12" ry="12"/></clipPath>
+    <linearGradient id="titlebar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2f3d"/>
+      <stop offset="1" stop-color="#20242f"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#rounded)">
+    <rect x="0" y="0" width="920" height="292" fill="#1b1e27"/>
+    <rect x="0" y="0" width="920" height="34" fill="url(#titlebar)"/>
+    <circle cx="20" cy="17.0" r="6" fill="#ff5f56"/>
+    <circle cx="40" cy="17.0" r="6" fill="#ffbd2e"/>
+    <circle cx="60" cy="17.0" r="6" fill="#27c93f"/>
+    <text x="460.0" y="21.5" text-anchor="middle" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="12.5" fill="#aab2c0">aipod — wired into the Claude Code CLI</text>
+    <rect x="0" y="0" width="920" height="292" fill="none" stroke="#2f3444" stroke-width="1"/>
+    <text x="18" y="46" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#5c6472" font-style="italic"># aipod is already running: podman run -d -p 18000:8000 aipod:latest</tspan></text><text x="18" y="65" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#7ee787" font-weight="600">$ </tspan><tspan fill="#e6edf3">claude mcp add --transport http aipod http://127.0.0.1:18000/mcp</tspan></text><text x="18" y="84" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">Added HTTP MCP server aipod with URL: http://127.0.0.1:18000/mcp to local config</tspan></text><text x="18" y="103" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3"></tspan></text><text x="18" y="122" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#7ee787" font-weight="600">$ </tspan><tspan fill="#e6edf3">claude mcp get aipod</tspan></text><text x="18" y="141" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">aipod:</tspan></text><text x="18" y="160" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">  Scope: Local config (private to you in this project)</tspan></text><text x="18" y="179" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">  Status: ✔ Connected</tspan></text><text x="18" y="198" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">  Type: http</tspan></text><text x="18" y="217" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">  URL: http://127.0.0.1:18000/mcp</tspan></text><text x="18" y="236" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3"></tspan></text><text x="18" y="255" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#5c6472" font-style="italic"># now just ask: "use the aipod get_hero tool for storm"</tspan></text>
+  </g>
+</svg>

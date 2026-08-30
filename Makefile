@@ -13,8 +13,12 @@ export AIPOD_MCP_URL
 INSPECTOR   ?= @modelcontextprotocol/inspector@2.4.0
 MCP_URL     ?= http://$(HOST):$(SERVER_PORT)/mcp
 
+CHART       ?= charts/aipod
+RELEASE     ?= aipod
+
 .PHONY: help sync test server server-stdio agent ask contract card inspect inspect-cli \
-        binary docker docker-server docker-agent k8s k8s-delete clean
+        binary docker docker-server docker-agent k8s k8s-delete \
+        helm-lint helm-template helm-install helm-uninstall clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -71,6 +75,18 @@ k8s: ## Apply the Kubernetes manifests (both modes)
 
 k8s-delete: ## Remove the Kubernetes resources
 	kubectl delete -k k8s
+
+helm-lint: ## Lint the Helm chart
+	helm lint $(CHART)
+
+helm-template: ## Render the Helm chart to stdout
+	helm template $(RELEASE) $(CHART)
+
+helm-install: ## Install/upgrade the Helm chart ($(RELEASE))
+	helm upgrade --install $(RELEASE) $(CHART)
+
+helm-uninstall: ## Remove the Helm release
+	helm uninstall $(RELEASE)
 
 clean: ## Remove build artefacts
 	rm -rf dist build .pytest_cache

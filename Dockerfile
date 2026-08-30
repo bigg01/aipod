@@ -42,6 +42,13 @@ RUN mkdir -p /rootfs/tmp /rootfs/etc/ssl/certs \
 # ---- runtime stage ----
 FROM scratch
 
+LABEL org.opencontainers.image.title="aipod" \
+      org.opencontainers.image.description="One image, two modes: a reference MCP server and a pydantic-ai agent" \
+      org.opencontainers.image.authors="BigG01 <olig@containerize.ch>" \
+      org.opencontainers.image.source="https://github.com/bigg01/aipod" \
+      org.opencontainers.image.url="https://github.com/bigg01/aipod" \
+      org.opencontainers.image.licenses="MIT"
+
 COPY --from=build /rootfs/ /
 
 ENV TMPDIR=/tmp \

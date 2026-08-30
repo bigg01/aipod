@@ -1,0 +1,18 @@
+apiVersion: v2
+name: aipod
+description: One image, two modes - a reference MCP server and a pydantic-ai agent
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/bigg01/aipod
+sources:
+  - https://github.com/bigg01/aipod
+keywords:
+  - mcp
+  - model-context-protocol
+  - pydantic-ai
+  - agent
+maintainers:
+  - name: BigG01
+    email: olig@containerize.ch
+    url: https://github.com/bigg01

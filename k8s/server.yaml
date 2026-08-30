@@ -19,6 +19,11 @@ spec:
       labels:
         app.kubernetes.io/name: aipod
         app.kubernetes.io/component: server
+      # With AIPOD_METRICS=prometheus (see configmap.yaml) uncomment to scrape /metrics:
+      # annotations:
+      #   prometheus.io/scrape: "true"
+      #   prometheus.io/path: /metrics
+      #   prometheus.io/port: "8000"
     spec:
       securityContext:
         runAsNonRoot: true

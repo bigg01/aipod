@@ -1,0 +1,148 @@
+# Default values for the aipod chart.
+# Both modes run from the one image; enable/disable each independently.
+
+image:
+  repository: ghcr.io/bigg01/aipod
+  # Defaults to the chart appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Rendered into ConfigMap/<release>-aipod-config and consumed by both modes via
+# envFrom. Governance labels here populate the server contract's `governance`
+# block and the agent card's `x-governance` block. Override per environment.
+config:
+  # agent -> server. Left empty, the chart points it at the in-cluster server
+  # Service: http://<release>-aipod-server.<namespace>.svc.cluster.local:<port>/mcp
+  AIPOD_MCP_URL: ""
+  AIPOD_MODEL: "anthropic:claude-haiku-4-5"
+
+  AIPOD_OWNER: "unassigned@example.com"
+  AIPOD_DOMAIN: "reference/testing"
+  AIPOD_DATA_CLASSIFICATION: "PUBLIC" # PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED
+  AIPOD_DATA_RESIDENCY: "unspecified"
+  AIPOD_REGULATORY_SCOPE: "" # e.g. "GDPR,SOC2,EU-AI-Act:limited-risk"
+  AIPOD_AUTH_SCHEMES: "none" # governance label; e.g. "oauth2,mtls"
+  AIPOD_CONTAINS_PII: "false"
+  AIPOD_AUDIT_LOG: "stdout"
+  AIPOD_AUTH_SCOPES: "" # CSV of scopes a caller must present, e.g. "mcp:invoke"
+  # AIPOD_AUTH_ISSUER: "https://id.example.com"
+  # AIPOD_PUBLIC_URL: "https://aipod.example.com"
+
+# Optional bearer-token auth for the server. When enabled the server's /mcp route
+# becomes an OAuth 2.1 protected resource and the agent sends the same key as
+# AIPOD_MCP_TOKEN.
+auth:
+  enabled: false
+  # Provide the key inline and the chart creates Secret/<release>-aipod-auth...
+  apiKey: ""
+  # ...or reference a Secret you manage yourself (must hold `secretKey`).
+  existingSecret: ""
+  secretKey: AIPOD_API_KEY
+
+# Model-provider key for agent mode (e.g. Anthropic). Without it the agent still
+# serves its card and /health; /ask returns 503.
+model:
+  # Env var the provider SDK reads (matches AIPOD_MODEL's provider).
+  apiKeyName: ANTHROPIC_API_KEY
+  # Provide inline and the chart creates Secret/<release>-aipod-model...
+  apiKey: ""
+  # ...or reference a Secret you manage yourself (must hold `apiKeyName`).
+  existingSecret: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Applied to every pod.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Applied to every container.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# emptyDir mounted at /tmp so the read-only rootfs still has scratch space.
+tmpSizeLimit: 128Mi
+
+# OpenTelemetry metrics for both modes. Off until `exporter` is set.
+metrics:
+  # "" (off) | otlp | prometheus | console
+  exporter: ""
+  # OTLP/HTTP collector base URL -> OTEL_EXPORTER_OTLP_ENDPOINT (exporter: otlp)
+  otlpEndpoint: ""
+  # extra OTEL_RESOURCE_ATTRIBUTES, comma-separated key=value
+  resourceAttributes: ""
+  # with exporter: prometheus, add prometheus.io/scrape pod annotations
+  # ("/metrics" is served on each mode's existing HTTP port)
+  prometheusScrapeAnnotations: true
+
+server:
+  enabled: true
+  # Per-connection session state + background tasks live in memory -> keep at 1,
+  # or scale out behind a session-affinity load balancer.
+  replicas: 1
+  args: ["server", "--transport", "http", "--host", "0.0.0.0", "--port", "8000"]
+  containerPort: 8000
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    host: aipod-server.example.com
+    path: /
+    pathType: Prefix
+    tls: []
+
+agent:
+  enabled: true
+  # Stateless - each /ask builds a fresh agent.
+  replicas: 2
+  args: ["agent", "--host", "0.0.0.0", "--port", "8080"]
+  containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    host: aipod.example.com
+    path: /
+    pathType: Prefix
+    tls: []

@@ -1,0 +1,193 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to (re)build, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  UV_VERSION: "0.12.0"
+
+jobs:
+  guard:
+    name: tag matches pyproject version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          ref="${{ github.event.inputs.tag || github.ref_name }}"
+          tag="${ref#v}"
+          proj="$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+          echo "tag=$tag project=$proj"
+          if [ "$tag" != "$proj" ]; then
+            echo "::error::tag v$tag does not match pyproject version $proj"
+            exit 1
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+  test:
+    name: full test suite
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+
+  image:
+    name: build + push container
+    needs: [guard, test]
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.guard.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.guard.outputs.version }}
+            type=raw,value=latest
+            type=sha,format=long
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Smoke-test the pushed image
+        run: |
+          img="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
+          docker run --rm "$img" server --print contract --host release.local --port 0 \
+            | python -c "import json,sys; json.load(sys.stdin)"
+          docker run --rm -d --name rel -p 8000:8000 "$img"
+          for i in $(seq 1 30); do curl -fsS localhost:8000/health && break || sleep 1; done
+          curl -fsS localhost:8000/health
+          docker rm -f rel
+
+  binary:
+    name: standalone binary
+    needs: [guard, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends binutils patchelf
+      - run: uv sync --frozen --no-dev --group build
+      - run: |
+          uv run --no-sync pyinstaller packaging/aipod.spec --noconfirm --distpath dist --workpath /tmp/pyi
+          uv run --no-sync staticx --strip dist/aipod dist/aipod-linux-x86_64
+          ./dist/aipod-linux-x86_64 server --print contract --host bin.local --port 0 > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aipod-linux-x86_64
+          path: dist/aipod-linux-x86_64
+          if-no-files-found: error
+
+  chart:
+    name: package + push helm chart
+    needs: [guard, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - name: Package (chart + app version pinned to the tag)
+        run: |
+          v="${{ needs.guard.outputs.version }}"
+          helm package charts/aipod --version "$v" --app-version "$v" --destination dist
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+      - name: Push OCI chart
+        run: helm push dist/aipod-${{ needs.guard.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart
+          path: dist/aipod-${{ needs.guard.outputs.version }}.tgz
+          if-no-files-found: error
+
+  release:
+    name: github release
+    needs: [guard, image, binary, chart]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          files: |
+            artifacts/aipod-linux-x86_64
+            artifacts/aipod-${{ needs.guard.outputs.version }}.tgz
+          body: |
+            ## Container
+
+            ```
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.guard.outputs.version }}
+            ```
+
+            digest `${{ needs.image.outputs.digest }}`
+
+            ## Helm chart
+
+            ```
+            helm install aipod oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts/aipod --version ${{ needs.guard.outputs.version }}
+            ```
+
+            ## Standalone binary
+
+            `aipod-linux-x86_64` below is a fully static x86_64 build (PyInstaller + staticx).

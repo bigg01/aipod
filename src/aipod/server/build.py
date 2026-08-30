@@ -26,6 +26,7 @@ from mcp.types import (
 )
 from pydantic import AnyUrl
 
+from .. import telemetry
 from . import data
 from . import heroes
 from . import sampling_tools as agents
@@ -85,6 +86,7 @@ def build_server(
     _register_completion(mcp)
     _register_low_level_handlers(mcp)
     _register_http_routes(mcp)
+    telemetry.instrument_fastmcp(mcp)
     return mcp
 
 
@@ -699,6 +701,12 @@ def _register_http_routes(mcp: FastMCP) -> None:
     @mcp.custom_route("/health", methods=["GET"])
     async def health(_request: Request) -> JSONResponse:
         return JSONResponse({"status": "ok", "subscriptions": sorted(_subscriptions)})
+
+    if telemetry.prometheus_enabled():
+
+        @mcp.custom_route("/metrics", methods=["GET"])
+        async def metrics_route(_request: Request):  # type: ignore[no-untyped-def]
+            return telemetry.prometheus_response()
 
     @mcp.custom_route("/contract.json", methods=["GET"])
     async def contract_route(request: Request) -> JSONResponse:

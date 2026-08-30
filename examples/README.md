@@ -1,14 +1,15 @@
-# Generated docs
+# Examples
 
-Both files are produced from the code, so they stay in sync.
+| File | What it is | Regenerate / keep in sync |
+| --- | --- | --- |
+| `contract.json` | service contract served at `GET /contract.json` | `make contract` (`uv run aipod server --print contract`) |
+| `agent-card.json` | agent card served at `GET /.well-known/agent-card.json` | `make card` (`uv run aipod agent --print agent-card`) |
+| `helm-values.yaml` | a production-ish override for the [`charts/aipod`](../charts/aipod) Helm chart | hand-maintained; mirrors `charts/aipod/values.yaml` |
 
-| File | Produced by | Regenerate | Served at |
-| --- | --- | --- | --- |
-| `contract.json` | `aipod server` | `uv run aipod server --print contract` | `GET /contract.json` |
-| `agent-card.json` | `aipod agent` | `uv run aipod agent --print agent-card` | `GET /.well-known/agent-card.json` |
-
-Committed copies were generated with `--host aipod.example --port 80` (and, for
-the card, `AIPOD_MCP_URL=http://aipod-server/mcp`).
+`contract.json` and `agent-card.json` are produced from the code, so they stay in
+sync — CI fails if the committed copies drift. Committed copies were generated
+with `--host aipod.example --port 80` (and, for the card,
+`AIPOD_MCP_URL=http://aipod-server/mcp`).
 
 ## The split
 
@@ -47,6 +48,18 @@ and the same field becomes:
 
 and `clientRequirements.authentication.required` flips to `true`. See
 [`../docs/testing-mcp.md`](../docs/testing-mcp.md#authentication).
+
+## Deploying
+
+Both modes ship two ways, from the one `ghcr.io/bigg01/aipod` image:
+
+| Method | Path | Command |
+| --- | --- | --- |
+| Kustomize | [`../k8s`](../k8s) | `kubectl apply -k k8s` |
+| Helm | [`../charts/aipod`](../charts/aipod) | `helm install aipod oci://ghcr.io/bigg01/charts/aipod --version 0.1.0 -f helm-values.yaml` |
+
+`helm-values.yaml` here turns on bearer auth (keys from Secrets you manage), sets
+the governance labels, and exposes both modes through an ingress with TLS.
 
 ## Governance env vars
 

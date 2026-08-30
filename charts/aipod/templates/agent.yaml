@@ -1,0 +1,149 @@
+{{- if .Values.agent.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aipod.agentName" . }}
+  labels:
+    {{- include "aipod.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  replicas: {{ .Values.agent.replicas }}
+  selector:
+    matchLabels:
+      {{- include "aipod.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: agent
+  template:
+    metadata:
+      labels:
+        {{- include "aipod.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: agent
+      {{- $ann := merge (dict) (.Values.agent.podAnnotations | default dict) }}
+      {{- $scrape := fromYaml (include "aipod.scrapeAnnotations" (dict "exporter" .Values.metrics.exporter "enabled" .Values.metrics.prometheusScrapeAnnotations "port" .Values.agent.containerPort)) }}
+      {{- if $scrape }}{{ $ann = merge $ann $scrape }}{{ end }}
+      {{- with $ann }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "aipod.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: aipod
+          image: {{ include "aipod.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: {{ toJson .Values.agent.args }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "aipod.configName" . }}
+          env:
+            # Provider API key for AIPOD_MODEL. Optional: without it the agent
+            # still serves its card and /health; /ask returns 503.
+            - name: {{ .Values.model.apiKeyName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aipod.modelSecretName" . }}
+                  key: {{ .Values.model.apiKeyName }}
+                  optional: {{ not (or .Values.model.apiKey .Values.model.existingSecret) }}
+          {{- if .Values.auth.enabled }}
+            # Same key the server requires, sent as a bearer token on /mcp.
+            - name: AIPOD_MCP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aipod.authSecretName" . }}
+                  key: {{ .Values.auth.secretKey }}
+          {{- end }}
+          {{- include "aipod.metricsEnv" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.agent.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.tmpSizeLimit }}
+      {{- with .Values.agent.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.agent.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aipod.agentName" . }}
+  labels:
+    {{- include "aipod.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  type: {{ .Values.agent.service.type }}
+  selector:
+    {{- include "aipod.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+  ports:
+    - name: http
+      port: {{ .Values.agent.service.port }}
+      targetPort: http
+{{- if .Values.agent.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "aipod.agentName" . }}
+  labels:
+    {{- include "aipod.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+  {{- with .Values.agent.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.agent.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.agent.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.agent.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.agent.ingress.path }}
+            pathType: {{ .Values.agent.ingress.pathType }}
+            backend:
+              service:
+                name: {{ include "aipod.agentName" . }}
+                port:
+                  name: http
+{{- end }}
+{{- end }}

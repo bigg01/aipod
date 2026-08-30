@@ -70,13 +70,20 @@ def _run_server(args: argparse.Namespace) -> None:
         )
         return
 
+    from . import telemetry
+
+    telemetry.setup_metrics(mode="server")
+
     if args.transport == "stdio":
         mcp.run("stdio")
     else:
         from .server.auth import resolve_tokens
 
         note = " (bearer auth required)" if resolve_tokens(args.auth_token) else ""
-        print(f"aipod server on http://{args.host}:{args.port}  (MCP at /mcp){note}")
+        metrics_note = "  (metrics at /metrics)" if telemetry.prometheus_enabled() else ""
+        print(
+            f"aipod server on http://{args.host}:{args.port}  (MCP at /mcp){note}{metrics_note}"
+        )
         mcp.run("streamable-http")
 
 
@@ -97,11 +104,15 @@ def _run_agent(args: argparse.Namespace) -> None:
 
     import uvicorn
 
+    from . import telemetry
     from .agent.http import build_app
 
+    telemetry.setup_metrics(mode="agent")
+
+    metrics_note = "  (metrics at /metrics)" if telemetry.prometheus_enabled() else ""
     print(
         f"aipod agent on http://{args.host}:{args.port}  "
-        "(agent card at /.well-known/agent-card.json)"
+        f"(agent card at /.well-known/agent-card.json){metrics_note}"
     )
     uvicorn.run(build_app(), host=args.host, port=args.port)
 

@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.12.0"
+
+jobs:
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --frozen --python ${{ matrix.python-version }}
+
+      - name: Lock file is up to date
+        run: uv lock --check
+
+      - name: Build the wheel + sdist
+        run: uv build
+
+      - name: Run the test suite
+        run: uv run --python ${{ matrix.python-version }} pytest -q
+
+      - name: Contract + agent card still generate
+        run: |
+          uv run aipod server --print contract --host ci.local --port 0 > /tmp/contract.json
+          AIPOD_MCP_URL=http://aipod-server/mcp \
+            uv run aipod agent --print agent-card --host ci.local --port 0 > /tmp/agent-card.json
+          python -c "import json,sys; [json.load(open(p)) for p in sys.argv[1:]]" /tmp/contract.json /tmp/agent-card.json
+
+      - name: Committed examples are in sync
+        run: |
+          uv run aipod server --print contract --host aipod.example --port 80 > examples/contract.json
+          AIPOD_MCP_URL=http://aipod-server/mcp \
+            uv run aipod agent --print agent-card --host aipod.example --port 80 > examples/agent-card.json
+          git diff --exit-code examples/ \
+            || { echo "::error::examples/ is stale - run 'make contract card' and commit"; exit 1; }
+
+  manifests:
+    name: k8s manifests + helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render Kustomize
+        run: kubectl kustomize k8s > /tmp/kustomize.yaml && test -s /tmp/kustomize.yaml
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: helm lint
+        run: helm lint charts/aipod
+
+      - name: helm template (default + auth + ingress)
+        run: |
+          helm template aipod charts/aipod > /tmp/helm-default.yaml
+          helm template aipod charts/aipod \
+            --set auth.enabled=true --set auth.apiKey=ci \
+            --set model.apiKey=ci \
+            --set server.ingress.enabled=true --set agent.ingress.enabled=true \
+            > /tmp/helm-full.yaml
+          test -s /tmp/helm-default.yaml && test -s /tmp/helm-full.yaml
+
+      - name: Validate rendered manifests against the Kubernetes schema
+        uses: docker://ghcr.io/yannh/kubeconform:latest-alpine
+        with:
+          args: >-
+            -strict -summary -ignore-missing-schemas
+            /tmp/kustomize.yaml /tmp/helm-default.yaml /tmp/helm-full.yaml
+
+  image:
+    name: docker build (smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the FROM scratch image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: aipod:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Server smoke test
+        run: |
+          docker run --rm aipod:ci server --print contract --host smoke.local --port 0 > /tmp/c.json
+          python -c "import json; json.load(open('/tmp/c.json'))"
+          docker run --rm -d --name aipod-smoke -p 8000:8000 aipod:ci
+          for i in $(seq 1 30); do
+            curl -fsS localhost:8000/health && break || sleep 1
+          done
+          curl -fsS localhost:8000/health
+          curl -fsS localhost:8000/contract.json | python -c "import json,sys; json.load(sys.stdin)"
+          docker rm -f aipod-smoke

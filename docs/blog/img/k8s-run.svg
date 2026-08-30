@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="311" viewBox="0 0 980 311">
+  <defs>
+    <clipPath id="rounded"><rect x="0" y="0" width="980" height="311" rx="12" ry="12"/></clipPath>
+    <linearGradient id="titlebar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2f3d"/>
+      <stop offset="1" stop-color="#20242f"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#rounded)">
+    <rect x="0" y="0" width="980" height="311" fill="#1b1e27"/>
+    <rect x="0" y="0" width="980" height="34" fill="url(#titlebar)"/>
+    <circle cx="20" cy="17.0" r="6" fill="#ff5f56"/>
+    <circle cx="40" cy="17.0" r="6" fill="#ffbd2e"/>
+    <circle cx="60" cy="17.0" r="6" fill="#27c93f"/>
+    <text x="490.0" y="21.5" text-anchor="middle" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="12.5" fill="#aab2c0">aipod — the k8s manifest, actually running</text>
+    <rect x="0" y="0" width="980" height="311" fill="none" stroke="#2f3444" stroke-width="1"/>
+    <text x="18" y="46" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#5c6472" font-style="italic"># k8s/configmap.yaml + k8s/server.yaml, unmodified</tspan></text><text x="18" y="65" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#7ee787" font-weight="600">$ </tspan><tspan fill="#e6edf3">podman kube play k8s/configmap.yaml k8s/server.yaml --publish 18001:8000</tspan></text><text x="18" y="84" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">Pod: a92bfb1640cc942df71fa6eda12d10ca605550865e1977b7528ea6760d418a8</tspan></text><text x="18" y="103" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3"></tspan></text><text x="18" y="122" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#7ee787" font-weight="600">$ </tspan><tspan fill="#e6edf3">podman pod ps</tspan></text><text x="18" y="141" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">NAME              STATUS    CREATED         # CONTAINERS</tspan></text><text x="18" y="160" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">aipod-server-pod  Running   20 seconds ago  2</tspan></text><text x="18" y="179" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3"></tspan></text><text x="18" y="198" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#7ee787" font-weight="600">$ </tspan><tspan fill="#e6edf3">curl -s http://127.0.0.1:18001/contract.json | jq '.governance.owner, .governance.dataClassification'</tspan></text><text x="18" y="217" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">"unassigned@example.com"</tspan></text><text x="18" y="236" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3">"PUBLIC"</tspan></text><text x="18" y="255" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#9da7b3"></tspan></text><text x="18" y="274" font-family="SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="13.5" xml:space="preserve"><tspan fill="#5c6472" font-style="italic"># both values came from the ConfigMap, not the code</tspan></text>
+  </g>
+</svg>

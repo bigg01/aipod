@@ -267,6 +267,28 @@ issuer's JWTs (signature, `aud`, `exp`, scopes).
 
 ---
 
+## Metrics (OpenTelemetry)
+
+Off unless asked for. `AIPOD_METRICS` = `prometheus` \| `otlp` \| `console`
+(standard `OTEL_*` vars work too; `OTEL_SDK_DISABLED=true` forces off).
+
+```bash
+AIPOD_METRICS=prometheus uv run aipod server --transport http --port 8000 &
+# call a couple of tools first so the counters exist
+npx -y @modelcontextprotocol/inspector@2.4.0 --cli http://127.0.0.1:8000/mcp \
+  --method tools/call --tool-name echo --tool-arg message=hi
+
+curl -s http://127.0.0.1:8000/metrics | grep -E 'mcp_server_tool_(calls|duration)'
+# mcp_server_tool_calls_total{mcp_tool_name="echo",outcome="ok",...} 1.0
+```
+
+Instruments: `mcp.server.tool.calls` / `mcp.server.tool.duration`
+(attrs `mcp.tool.name`, `outcome`, `mcp.tool.sampling`) in server mode;
+`aipod.agent.ask.calls` / `aipod.agent.ask.duration` in agent mode.
+`tests/test_telemetry.py` asserts them with an in-memory reader.
+
+---
+
 ## 3. MCP Inspector — UI (interactive)
 
 ```bash
