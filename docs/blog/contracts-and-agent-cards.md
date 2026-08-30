@@ -110,6 +110,12 @@ system, and a few tools that borrow the caller's model via MCP sampling.
 Real enough to catch real bugs in a gateway or a client, without touching
 anything that matters.
 
+If you don't want to run anything locally, there's a public instance at
+<https://aipod.guggenbuehl.net/> — point the Inspector (or any MCP client) at
+`https://aipod.guggenbuehl.net/mcp` and the same `tools/list` works. It's open,
+shared, and best-effort; the stateful tools reset on their own, so treat it as
+a scratch endpoint.
+
 ## Use it from Claude Code
 
 `aipod server` is an MCP server, so any MCP client can use it — including
@@ -261,6 +267,7 @@ thing at something real.
 ## aipod
 
 - Source — <https://github.com/bigg01/aipod>
+- Live instance — <https://aipod.guggenbuehl.net/> (MCP at `/mcp`, contract at `/contract.json`; open, shared, best-effort)
 - Container — [`ghcr.io/bigg01/aipod`](https://github.com/bigg01/aipod/pkgs/container/aipod) (public, `docker pull` needs no login)
 - Helm chart — `oci://ghcr.io/bigg01/charts/aipod`
 - Latest release — <https://github.com/bigg01/aipod/releases/latest>

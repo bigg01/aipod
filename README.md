@@ -17,9 +17,15 @@ mode) and pydantic-ai's MCP client (agent mode). Packaged as a single
 `FROM scratch` container; the same image runs either mode.
 
 Repo: <https://github.com/bigg01/aipod> &nbsp;·&nbsp;
-Latest release: [**v0.1.1**](https://github.com/bigg01/aipod/releases/latest) &nbsp;·&nbsp;
+Latest release: [**v0.1.2**](https://github.com/bigg01/aipod/releases/latest) &nbsp;·&nbsp;
 Image: [`ghcr.io/bigg01/aipod`](https://github.com/bigg01/aipod/pkgs/container/aipod) &nbsp;·&nbsp;
 Chart: `oci://ghcr.io/bigg01/charts/aipod`
+
+**Live instance for remote MCP testing:** a public `aipod server` runs at
+**<https://aipod.guggenbuehl.net/>** — MCP endpoint `https://aipod.guggenbuehl.net/mcp`,
+contract at `/contract.json`. Open by default; point any MCP client at it without
+installing anything. Shared and best-effort — treat state (incidents,
+deployments) as scratch.
 
 ![aipod architecture: MCP clients and agent platforms talk to aipod server; aipod agent talks to aipod server and to a model](docs/architecture.svg)
 
@@ -199,6 +205,10 @@ npx -y @modelcontextprotocol/inspector --cli \
   http://127.0.0.1:8000/mcp --method tools/list                 # or: make inspect-cli
 npx -y @modelcontextprotocol/inspector --cli \
   http://127.0.0.1:8000/mcp --method tools/call --tool-name add --tool-arg a=2 --tool-arg b=3
+
+# or skip the local server and hit the live instance
+npx -y @modelcontextprotocol/inspector --cli \
+  https://aipod.guggenbuehl.net/mcp --method tools/list
 ```
 
 Full walkthrough — every feature (structured output, resource templates,
