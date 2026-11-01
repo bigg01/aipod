@@ -14,6 +14,30 @@ env:
   UV_VERSION: "0.12.0"
 
 jobs:
+  foundry:
+    name: Foundry Invocations adapter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --frozen --extra foundry --python 3.12
+      - run: uv run --no-sync pytest tests/test_foundry.py -q
+      - name: Build Foundry AMD64 image
+        run: podman build --platform linux/amd64 -f Dockerfile.foundry -t localhost/aipod-foundry:ci .
+      - name: Foundry readiness and SIGTERM smoke test
+        run: |
+          podman run -d --name foundry-smoke -p 127.0.0.1:8088:8088 \
+            -e AIPOD_MODEL=test -e OTEL_SDK_DISABLED=true localhost/aipod-foundry:ci
+          trap 'podman rm -f foundry-smoke' EXIT
+          curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8088/readiness
+          status=$(curl -s -o /tmp/invocation.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:8088/invocations)
+          test "$status" = 400
+          podman stop --time 35 foundry-smoke
+          test "$(podman inspect foundry-smoke --format '{{.State.ExitCode}}')" = 0
+
   test:
     name: test (py${{ matrix.python-version }})
     runs-on: ubuntu-latest

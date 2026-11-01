@@ -50,8 +50,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
-      - run: uv sync --frozen
-      - run: uv run pytest -q
+      - run: uv sync --frozen --extra foundry
+      - run: uv run --no-sync pytest -q
 
   image:
     name: build + push container
@@ -110,6 +110,34 @@ jobs:
           curl -fsS localhost:8000/health
           docker rm -f rel
 
+  foundry:
+    name: build + push Foundry container (Podman)
+    needs: [guard, test]
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.publish.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build and smoke-test Foundry AMD64 image
+        run: |
+          img="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.guard.outputs.version }}-foundry"
+          podman build --platform linux/amd64 -f Dockerfile.foundry -t "$img" .
+          podman run -d --name foundry-smoke -p 127.0.0.1:8088:8088 \
+            -e AIPOD_MODEL=test -e OTEL_SDK_DISABLED=true "$img"
+          trap 'podman rm -f foundry-smoke' EXIT
+          curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8088/readiness
+          podman stop --time 35 foundry-smoke
+          test "$(podman inspect foundry-smoke --format '{{.State.ExitCode}}')" = 0
+      - name: Publish Foundry image
+        id: publish
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | podman login "${{ env.REGISTRY }}" -u "${{ github.actor }}" --password-stdin
+          img="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.guard.outputs.version }}-foundry"
+          podman push --digestfile /tmp/foundry-digest "$img"
+          echo "digest=$(cat /tmp/foundry-digest)" >> "$GITHUB_OUTPUT"
+
   binary:
     name: standalone binary
     needs: [guard, test]
@@ -157,7 +185,7 @@ jobs:
 
   release:
     name: github release
-    needs: [guard, image, binary, chart]
+    needs: [guard, image, foundry, binary, chart]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -185,6 +213,16 @@ jobs:
             ```
 
             digest `${{ needs.image.outputs.digest }}`
+
+            ## Foundry hosted agent (Invocations 2.0.0)
+
+            ```
+            podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.guard.outputs.version }}-foundry
+            ```
+
+            Deploy by digest: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.foundry.outputs.digest }}`.
+            This image defaults to `aipod agent --foundry` on port 8088.
+            See [Foundry setup](https://github.com/${{ github.repository }}/blob/${{ github.event.inputs.tag || github.ref_name }}/docs/foundry.md).
 
             ## Helm chart
 

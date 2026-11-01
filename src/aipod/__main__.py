@@ -38,6 +38,7 @@ def _build_parser() -> argparse.ArgumentParser:
     agent = sub.add_parser("agent", help="Run as a pydantic-ai agent that consumes an aipod server.")
     agent.add_argument("--host", default="127.0.0.1")
     agent.add_argument("--port", type=int, default=8080)
+    agent.add_argument("--foundry", action="store_true", help="Run the Foundry Invocations adapter on 0.0.0.0:8088 (or PORT).")
     agent.add_argument("--ask", metavar="PROMPT", help="Run one request, print the answer, and exit.")
     agent.add_argument("--model", default=None, help="Override AIPOD_MODEL for --ask.")
     agent.add_argument(
@@ -90,6 +91,12 @@ def _run_server(args: argparse.Namespace) -> None:
 
 
 def _run_agent(args: argparse.Namespace) -> None:
+    if args.foundry:
+        from .agent.foundry import build_host
+
+        build_host().run()
+        return
+
     if args.print_doc == "agent-card":
         from .agent.card import agent_card
 

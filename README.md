@@ -17,7 +17,7 @@ mode) and pydantic-ai's MCP client (agent mode). Packaged as a single
 `FROM scratch` container; the same image runs either mode.
 
 Repo: <https://github.com/bigg01/aipod> &nbsp;·&nbsp;
-Latest release: [**v0.1.2**](https://github.com/bigg01/aipod/releases/latest) &nbsp;·&nbsp;
+Latest release: [**v0.1.7**](https://github.com/bigg01/aipod/releases/latest) &nbsp;·&nbsp;
 Image: [`ghcr.io/bigg01/aipod`](https://github.com/bigg01/aipod/pkgs/container/aipod) &nbsp;·&nbsp;
 Chart: `oci://ghcr.io/bigg01/charts/aipod`
 
@@ -333,6 +333,8 @@ differently.
   [`examples/azure-ai-foundry-mcp-tool.json`](examples/azure-ai-foundry-mcp-tool.json).
 
 ## CI / releases
+
+For Microsoft Foundry Hosted Agents, see [the Invocations runtime and deployment guide](docs/foundry.md).
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push / PR:
 `pytest` on Python 3.11–3.13, `uv build`, `uv lock --check`, a check that

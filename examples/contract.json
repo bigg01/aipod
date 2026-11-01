@@ -1,7 +1,7 @@
 {
   "service": "aipod",
   "mode": "server",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "mcpProtocolVersion": "2025-06-18",
   "transport": {
     "stdio": true,
