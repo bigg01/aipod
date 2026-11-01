@@ -31,7 +31,7 @@ jobs:
           podman run -d --name foundry-smoke -p 127.0.0.1:8088:8088 \
             -e AIPOD_MODEL=test -e OTEL_SDK_DISABLED=true localhost/aipod-foundry:ci
           trap 'podman rm -f foundry-smoke' EXIT
-          curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8088/readiness
+          curl --fail --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:8088/readiness
           status=$(curl -s -o /tmp/invocation.json -w '%{http_code}' \
             -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:8088/invocations)
           test "$status" = 400

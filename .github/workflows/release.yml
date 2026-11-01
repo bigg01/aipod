@@ -125,7 +125,7 @@ jobs:
           podman run -d --name foundry-smoke -p 127.0.0.1:8088:8088 \
             -e AIPOD_MODEL=test -e OTEL_SDK_DISABLED=true "$img"
           trap 'podman rm -f foundry-smoke' EXIT
-          curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:8088/readiness
+          curl --fail --retry 20 --retry-all-errors --retry-delay 1 http://127.0.0.1:8088/readiness
           podman stop --time 35 foundry-smoke
           test "$(podman inspect foundry-smoke --format '{{.State.ExitCode}}')" = 0
       - name: Publish Foundry image
