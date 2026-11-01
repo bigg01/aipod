@@ -73,3 +73,41 @@ def test_ask_validation(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AIPOD_MODEL", "anthropic:claude-haiku-4-5")
     client = TestClient(build_app())
     assert client.post("/ask", json={}).status_code == 400
+
+
+def test_ask_prompt_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_ask(prompt: str, *, model: str | None = None) -> str:
+        assert prompt == "hi"
+        return "hello"
+
+    monkeypatch.setenv("AIPOD_MODEL", "anthropic:claude-haiku-4-5")
+    monkeypatch.setattr("aipod.agent.http.ask", _fake_ask)
+    client = TestClient(build_app())
+    resp = client.post("/ask", json={"prompt": "hi"})
+    assert resp.status_code == 200
+    assert resp.json() == {"output": "hello"}
+
+
+def test_ask_responses_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_ask(prompt: str, *, model: str | None = None) -> str:
+        assert prompt == "hello\nworld"
+        return "done"
+
+    monkeypatch.setenv("AIPOD_MODEL", "anthropic:claude-haiku-4-5")
+    monkeypatch.setattr("aipod.agent.http.ask", _fake_ask)
+    client = TestClient(build_app())
+    resp = client.post(
+        "/ask",
+        json={
+            "input": [
+                {"role": "user", "content": [{"type": "input_text", "text": "hello"}]},
+                {"role": "user", "content": [{"type": "input_text", "text": "world"}]},
+            ]
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["object"] == "response"
+    assert payload["status"] == "completed"
+    assert payload["output_text"] == "done"
+    assert payload["output"][0]["content"][0]["text"] == "done"

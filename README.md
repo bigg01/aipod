@@ -67,7 +67,8 @@ client ─────────────▶ aipod agent ──────
 ```
 
 HTTP routes: `GET /`, `GET /health`, `GET /.well-known/agent-card.json`,
-`POST /ask` (`{"prompt": "..."}` → `{"output": "..."}`).
+`POST /ask` (legacy `{"prompt":"..."}` → `{"output":"..."}` and
+Responses-style `{"input":"..."}` / `{"input":[...messages...]}` → `{"object":"response", ...}`).
 
 Agent mode needs a model — `AIPOD_MODEL` (e.g. `anthropic:claude-haiku-4-5`) plus
 the provider key. Without one it still serves the card and `/health`; `/ask`

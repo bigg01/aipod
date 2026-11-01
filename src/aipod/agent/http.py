@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from uuid import uuid4
+
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
@@ -37,7 +41,9 @@ _LANDING = """<!doctype html>
 <ul>
   <li><code>GET /.well-known/agent-card.json</code> &mdash; the agent card</li>
   <li><code>GET /health</code> &mdash; readiness / liveness</li>
-  <li><code>POST /ask</code> &mdash; <code>{{"prompt": "..."}}</code> &rarr; <code>{{"output": "..."}}</code>
+  <li><code>POST /ask</code> &mdash; accepts <code>{{"prompt": "..."}}</code> or
+      <code>{{"input": "..."}}</code>; returns legacy <code>{{"output": "..."}}</code>
+      or a Responses-style payload
       {model_note}</li>
 </ul>
 <footer>Source: <a href="https://github.com/bigg01/aipod">github.com/bigg01/aipod</a></footer>
@@ -76,6 +82,82 @@ async def _metrics(_request: Request):  # type: ignore[no-untyped-def]
     return telemetry.prometheus_response()
 
 
+def _iter_text_parts(content: object) -> Iterable[str]:
+    if isinstance(content, str):
+        yield content
+        return
+    if not isinstance(content, list):
+        return
+    for part in content:
+        if isinstance(part, str):
+            yield part
+            continue
+        if not isinstance(part, dict):
+            continue
+        text = part.get("text")
+        if isinstance(text, str):
+            yield text
+
+
+def _extract_prompt(body: object) -> tuple[str | None, bool]:
+    if not isinstance(body, dict):
+        return None, False
+
+    prompt = body.get("prompt")
+    if isinstance(prompt, str) and prompt.strip():
+        return prompt, False
+
+    input_value = body.get("input")
+    if input_value is None:
+        return None, False
+
+    if isinstance(input_value, str) and input_value.strip():
+        return input_value, True
+
+    if isinstance(input_value, dict):
+        input_value = [input_value]
+
+    if not isinstance(input_value, list):
+        return None, True
+
+    chunks: list[str] = []
+    for item in input_value:
+        if isinstance(item, str):
+            chunks.append(item)
+            continue
+        if not isinstance(item, dict):
+            continue
+        text = item.get("text")
+        if isinstance(text, str):
+            chunks.append(text)
+        chunks.extend(_iter_text_parts(item.get("content")))
+
+    prompt = "\n".join(part.strip() for part in chunks if part.strip())
+    return (prompt if prompt else None), True
+
+
+def _responses_payload(output_text: str) -> dict[str, object]:
+    response_id = f"resp_{uuid4().hex}"
+    message_id = f"msg_{uuid4().hex}"
+    return {
+        "id": response_id,
+        "object": "response",
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "status": "completed",
+        "model": model_name() or "",
+        "output": [
+            {
+                "id": message_id,
+                "type": "message",
+                "status": "completed",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": output_text, "annotations": []}],
+            }
+        ],
+        "output_text": output_text,
+    }
+
+
 async def _ask(request: Request) -> JSONResponse:
     if model_name() is None:
         return JSONResponse(
@@ -86,10 +168,15 @@ async def _ask(request: Request) -> JSONResponse:
         body = await request.json()
     except Exception:
         return JSONResponse({"error": "body must be JSON"}, status_code=400)
-    prompt = (body or {}).get("prompt")
-    if not isinstance(prompt, str) or not prompt.strip():
-        return JSONResponse({"error": "missing 'prompt' string"}, status_code=400)
+    prompt, responses_shape = _extract_prompt(body)
+    if not prompt:
+        return JSONResponse(
+            {"error": "missing 'prompt' string or non-empty 'input' content"},
+            status_code=400,
+        )
     output = await ask(prompt)
+    if responses_shape:
+        return JSONResponse(_responses_payload(output))
     return JSONResponse({"output": output})
 
 
